@@ -337,7 +337,8 @@ end
 ### Xcorr Data Reader
 #  > Inputs: input parameters, event dataframe, station dataframe
 #  < Returns: xcor dataframe
-function read_xcordata(inpD,qdf,sdf)
+#  note: original function for event / station data in latlon coords
+function read_xcordata_lonlat(inpD,qdf,sdf)
 
     # unpack parameters
     xcfile = inpD["fin_xcordat"]
@@ -433,6 +434,112 @@ function read_xcordata(inpD,qdf,sdf)
     # Return       
     select!(xdf,["qix1","qid1","qix2","qid2","sta","tdif","rxcor",
             "slat","slon","sdist","igood","iphase"])
+    return xdf
+ 
+    
+end
+
+### Xcorr Data Reader
+#  > Inputs: input parameters, event dataframe, station dataframe
+#  < Returns: xcor dataframe
+#  note: original function for event / station data in projected coords
+function read_xcordata_proj(inpD,qdf,sdf)
+
+    # unpack parameters
+    xcfile = inpD["fin_xcordat"]
+    xcfmt = inpD["xcordat_fmt"]
+    tdiffmt = inpD["tdif_fmt"]
+    rmincut = Float32(inpD["rmincut"])
+    rpsavgmin = Float32(inpD["rpsavgmin"])
+    rmingood = Float32(inpD["rmin"])
+    ngoodmin =inpD["ngoodmin"]
+    iponly = inpD["iponly"]
+    delmax = inpD["delmax"]
+    
+    # only text file for now
+    if xcfmt != 1
+        println("XCOR FORMAT NOT IMPLEMENTED:",xcfmt)
+        exit()
+    end
+    
+    # read initial data
+    cols = ["sta", "tdif", "rxcor", "iphase"]
+    tmap = [String, Float64, Float32, Int8]
+    xdf = DataFrame(readdlm(xcfile,Any,
+        comments=true,comment_char='#', use_mmap=true),cols)
+    Threads.@threads for ii in 1:length(cols)
+        col = cols[ii]
+        if ii == 1
+            xdf[!,col] = string.(xdf[!,col])
+        elseif ii == 4
+            xdf[!,col] = ifelse.(xdf[!,col].=="P",Int8(1),Int8(2))
+        else
+            xdf[!,col] = convert.(tmap[ii],xdf[!,col])
+        end
+    end
+
+   # add in event pairs
+    xdf[!,:qid1] .= 0
+    xdf[!,:qid2] .= 0    
+    open(xcfile) do f
+        ii = 0
+        q1, q2 = 0, 0
+        for line in eachline(f)
+            if line[1]=='#'
+                _, ev1, ev2, _ = split(line)
+                q1 = parse(Int64,ev1)
+                q2 = parse(Int64,ev2)
+            else
+                ii+=1
+                xdf[ii,:qid1] = q1
+                xdf[ii,:qid2] = q2
+            end
+        end
+    end
+            
+    # Calculate Event Pair statistics
+    transform!(groupby(xdf, [:qid1,:qid2]), :rxcor => mean => :gxcor)
+    
+    # Subset by quality
+    if iponly==1
+        xdf = xdf[(xdf[!,:rxcor].>=rmincut).&(
+                   xdf[!,:gxcor].>=rpsavgmin).&(xdf[!,:iphase].==Int8(1)),:]
+    else
+        xdf = xdf[(xdf[!,:rxcor].>=rmincut).&(xdf[!,:gxcor].>=rpsavgmin),:]
+    end
+    
+    # Merge Event Location
+    xdf = innerjoin(xdf,qdf,on=:qid1=>:qid)
+    DataFrames.rename!(xdf,:qX4=>:qX1,:qY4=>:qY1,:qix=>:qix1)
+    xdf = innerjoin(xdf,qdf,on=:qid2=>:qid)
+    DataFrames.rename!(xdf,:qX4=>:qX2,:qY4=>:qY2,:qix=>:qix2)
+    
+    # Centroid of event pair
+    xdf[!,:qX4] = 0.5*(xdf[!,:qX1].+xdf[!,:qX2])
+    xdf[!,:qY4] = 0.5*(xdf[!,:qY1].+xdf[!,:qY2])
+    
+    # Merge Station Location
+    xdf = innerjoin(xdf,sdf,on=:sta)
+    
+    # Calculate distances
+    #xdf[!,:sdist] = sqrt.((xdf.qX4.-xdf.sX4).^2 .+ (xdf.qY4.-xdf.sY4).^2)
+    xdf[!,:sdist] = xydist(xdf.qX4, xdf.qY4, xdf.sX4, xdf.sY4)
+    
+    # Define "good" xcorr
+    xdf[!,:igood] .= (xdf[!,:sdist].<=delmax).&(xdf[!,:rxcor].>=rmingood)
+    transform!(groupby(xdf, [:qid1,:qid2]), :igood => sum => :ngood)
+    
+    # Keep only good pairs
+    xdf = xdf[xdf[!,:ngood].>=ngoodmin,:]
+    
+    # redefine tdif to default tt2 - tt1
+    if tdiffmt == 12
+        xdf[!,:tdif].*=-1.0
+    end
+    
+    # Return       
+    select!(xdf,["qix1","qid1","qix2","qid2","sta","tdif","rxcor",
+            "sX4","sY4","sdist","igood","iphase"])
     return xdf
  
     

@@ -30,6 +30,18 @@ lat0 = 0.5*mean(lat2.+lat1)
 return degkm*sqrt.( (lat2.-lat1).^2 .+ (cosd(lat0)*(lon2.-lon1)).^2 )
 end
 
+### Functions for computing cartestian distances
+
+# vectors (x,y) x 2
+function xydist(x1::Vector{Float64},y1::Vector{Float64},x2::Vector{Float64},y2::Vector{Float64})
+    return sqrt.((x1.-x2).^2 .+ (y1.-y2).^2)
+end
+
+# vectors (x,y) with scalar reference
+function xydist(x1::Vector{Float64},y1::Vector{Float64},x2::Float64,y2::Float64)
+    return sqrt.((x1.-x2).^2 .+ (y1.-y2).^2)
+end
+
 ### Robust Mean Based on Huber norm
 
 function robomean(xx::Vector{Float64},xgap::Float64,nit::Int64)
@@ -107,31 +119,30 @@ end
 #----------
 # Three versions: difclust1, difclust2, difclust3 --> for L1, L2, and Robomean norm.
 
-# Inputs: qlat0  =  reference center point latitude
-#         qlon0  =  reference center point longitude
-#         qdep0  =  reference center point depth (km)
+# Inputs: qX0  =  reference center point xpos (km)
+#         qY0  =  reference center point ypos (km)
+#         qZ0  =  reference center point depth (km)
 #         tdif   =  array (len=npick) of dif times, t2-t1 (s)
 #         iph    =  array (len=npick) with phase index numbers (1 to 10) for tt data
-#         slat   =  array (len=npick) with station latitudes
-#         slon   =  array (len=npick) with station longitudes
-#         qlat1  =  array (len=npick) of events in cluster1 latitude offsets from centroid
-#         qlon1  =  array (len=npick) of events in cluster1 longitude offsets
-#         qdep1  =  array (len=npick) of events in cluster1 depth offsets
-#         qorg1  =  array (len=npick) of events in cluster1 time offsets
-#         qlat2  =  array (len=npick) of events in cluster2 latitude offsets from centroid
-#         qlon2  =  array (len=npick) of events in cluster2 longitude offsets
-#         qdep2  =  array (len=npick) of events in cluster2 depth offsets
-#         qorg2  =  array (len=npick) of events in cluster2 time offsets
+#         sX   =  array (len=npick) with station latitudes
+#         sY   =  array (len=npick) with station longitudes
+#         qX1  =  array (len=npick) of events in cluster1 xpos offsets from centroid
+#         qY1  =  array (len=npick) of events in cluster1 ypos offsets
+#         qZ1  =  array (len=npick) of events in cluster1 depth offsets
+#         qT1  =  array (len=npick) of events in cluster1 time offsets
+#         qX2  =  array (len=npick) of events in cluster2 xpos offsets from centroid
+#         qY2  =  array (len=npick) of events in cluster2 ypos offsets
+#         qZ2  =  array (len=npick) of events in cluster2 depth offsets
+#         qT2  =  array (len=npick) of events in cluster2 time offsets
 #         ttTABs =  travel time tables for P and S phases
 #         boxwid =  starting box width (km)
 #         nit    =  number of iterations to perform
-#         degkm  =  degrees to km conversion factor
-# Returns: clat1  =  best-fitting latitude for first cluster centroid
-#          clon1  =  best-fitting longitude for first cluster centroid
-#          cdep1  =  best-fitting depth (km) of first cluster centroid
-#          clat2  =  best-fitting latitude for second cluster centroid
-#          clon2  =  best-fitting longitude for second cluster centroid
-#          cdep2  =  best-fitting depth (km) of second cluster centroid
+# Returns: cX1  =  best-fitting xpos (km) for first cluster centroid
+#          cY1  =  best-fitting ypos (km) for first cluster centroid
+#          cZ1  =  best-fitting depth (km) of first cluster centroid
+#          cX2  =  best-fitting xpos (km) for second cluster centroid
+#          cY2  =  best-fitting ypos (km) for second cluster centroid
+#          cZ2  =  best-fitting depth (km) of second cluster centroid
 #          cdist  =  cluster separation distance (km)
 #          torgdif=  origin time difference, i.e., t2-t1 median residual (>0 when 2 is later than 1)
 #          resid  =  array (len=npick) of residuals (s) between observed tdif (tt) and predicted
@@ -140,18 +151,18 @@ end
 #          resol  =  nominal resolution (m) of final box
 
 ##### difclust1: L1 residual norm
-function difclust1(qlat0::Float64,qlon0::Float64,qdep0::Float64,
+function difclust1(qX0::Float64,qY0::Float64,qZ0::Float64,
     tdif::Vector{Float64},iph::Vector{Int8},
-    slat::Vector{Float64},slon::Vector{Float64},
-    qlat1::Vector{Float64},qlon1::Vector{Float64},
-    qdep1::Vector{Float64},qorg1::Vector{Float64},
-    qlat2::Vector{Float64},qlon2::Vector{Float64},
-    qdep2::Vector{Float64},qorg2::Vector{Float64},
-    ttTABs,boxwid::Float64,nit::Int64,degkm::Float64)
+    sX::Vector{Float64},sY::Vector{Float64},
+    qX1::Vector{Float64},qY1::Vector{Float64},
+    qZ1::Vector{Float64},qT1::Vector{Float64},
+    qX2::Vector{Float64},qY2::Vector{Float64},
+    qZ2::Vector{Float64},qT2::Vector{Float64},
+    ttTABs,boxwid::Float64,nit::Int64)
 
-# initialize some variables
-flatbest1, flonbest1, fdepbest1 = 0.0, 0.0, 0.0
-flatbest2, flonbest2, fdepbest2 = 0.0, 0.0, 0.0
+# initialize variables to track best solution
+fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
+fxbest2, fybest2, fzbest2 = 0.0, 0.0, 0.0
 torgdif = 0.0
 
 # extract npick
@@ -159,21 +170,17 @@ npick = length(tdif)
 resid = zeros(npick)
 
 # initialize box
-dlat0 = 0.0
-dlon0 = 0.0
-ddep0 = 0.0
-dlat = 0.5*boxwid/degkm
-cosqlat = cosd(qlat0)
-dlon = dlat/cosqlat
+dX0, dY0, dZ0 = 0.0, 0.0, 0.0 # C1 shift from initial centroid
+dX, dY = 0.5*boxwid, 0.5*boxwid # current box bounds
 
 # careful near surface (added 07/2018)
 zboxwid = boxwid
-if (qdep0 < 0.0)
+if (qZ0 < 0.0)
     zboxwid = min(1.0, boxwid)
-elseif (qdep0 < boxwid/2.0)
-    zboxwid = max(1.0,2.0*qdep0)
+elseif (qZ0 < boxwid/2.0)
+    zboxwid = max(1.0,2.0*qZ0)
 end
-ddep = 0.5*zboxwid
+dZ = 0.5*zboxwid # analagous to dX and dY
 
 # start iterations
 for it=1:nit
@@ -184,22 +191,22 @@ for it=1:nit
     
     # get trial locations: f1, f2 (3x3 grid for this box iteration)
     for iy = -1.0:1.0
-        flat1 = qlat0 + dlat0 + dlat*iy
-        flat2 = qlat0 - dlat0 - dlat*iy
+        fY1 = qY0 + dY0 + dY*iy # centroid + shift + trial offset
+        fY2 = qY0 - dY0 - dY*iy # centroid - shift - trial offset
         for ix = -1.0:1.0
-            flon1 = qlon0 + dlon0 + dlon*ix
-            flon2 = qlon0 - dlon0 - dlon*ix
+            fX1 = qX0 + dX0 + dX*ix  # centroid + shift + trial offset
+            fX2 = qX0 - dX0 - dX*ix # centroid - shift - trial offset
             for iz = -1.0:1.0
-                fdep1 = qdep0 + ddep0 + ddep*iz
-                fdep2 = qdep0 - ddep0 - ddep*iz
+                fZ1 = qZ0 + dZ0 + dZ*iz  # centroid + shift + trial offset
+                fZ2 = qZ0 - dZ0 - dZ*iz # centroid - shift - trial offset
                 
                 # compute predicted travel time and residuals w/observed
-                sdist1 = map_distance(qlat1.+flat1,qlon1.+flon1,slat,slon)
-                sdist2 = map_distance(qlat2.+flat2,qlon2.+flon2,slat,slon)                
+                sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
+                sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[iph[ii]](sdist1[ii],qdep1[ii]+fdep1)
-                    tt2 = ttTABs[iph[ii]](sdist2[ii],qdep2[ii]+fdep2)
-                    pdif = (tt2 + qorg2[ii]) - (tt1 + qorg1[ii])
+                    tt1 = ttTABs[iph[ii]](sdist1[ii],qZ1[ii]+fZ1)
+                    tt2 = ttTABs[iph[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
                 
@@ -210,12 +217,12 @@ for it=1:nit
                 # update best fit
                 if fit < fitbest
                     fitbest = fit
-                    flatbest1 = flat1
-                    flonbest1 = flon1
-                    fdepbest1 = fdep1
-                    flatbest2 = flat2
-                    flonbest2 = flon2
-                    fdepbest2 = fdep2
+                    fxbest1 = fX1
+                    fybest1 = fY1
+                    fzbest1 = fZ1
+                    fxbest2 = fX2
+                    fybest2 = fY2
+                    fzbest2 = fZ2
                     tbest = residval
                 end
                 
@@ -223,38 +230,38 @@ for it=1:nit
         end
     end # end of grid search
     
-    # update best position
-    dlat0 = flatbest1 - qlat0
-    dlon0 = flonbest1 - qlon0
-    ddep0 = fdepbest1 - qdep0
+    # update best shift
+    dX0 = fxbest1 - qX0
+    dY0 = fybest1 - qY0
+    dZ0 = fzbest1 - qZ0
     torgdif = tbest # otime difference: residual between observed and predicted tdif
 
     # shrink box by 2/3 each iteration
-    dlat *= 2.0/3.0      
-    dlon *= 2.0/3.0
-    ddep *= 2.0/3.0
+    dX *= 2.0/3.0      
+    dY *= 2.0/3.0
+    dZ *= 2.0/3.0
     
 end # end loop over iterations
 
 # output final locations
-clat1 = flatbest1
-clon1 = flonbest1
-cdep1 = fdepbest1
-clat2 = flatbest2
-clon2 = flonbest2
-cdep2 = fdepbest2
-resol = (dlat/(2.0/3.0))*degkm
+cX1 = fxbest1
+cY1 = fybest1
+cZ1 = fzbest1
+cX2 = fxbest2
+cY2 = fybest2
+cZ2 = fzbest2
+resol = dY/(2.0/3.0)
 
 # compute distance between cluster centroids
-cdist = sqrt((cdep2-cdep1)^2 + (map_distance(clat1,clon1,clat2,clon2))^2)
+cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
                 
 # compute residual between observed and predicted travel time
-sdist1 = map_distance(clat1.+qlat1,clon1.+qlon1,slat,slon)
-sdist2 = map_distance(clat2.+qlat2,clon2.+qlon2,slat,slon)
+sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
+sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[iph[ii]](sdist1[ii],cdep1+qdep1[ii])
-    tt2 = ttTABs[iph[ii]](sdist2[ii],cdep2+qdep2[ii])
-    pdif = (tt2 + qorg2[ii]) - (tt1 + qorg1[ii])
+    tt1 = ttTABs[iph[ii]](sdist1[ii],cZ1+qZ1[ii])
+    tt2 = ttTABs[iph[ii]](sdist2[ii],cZ2+qZ2[ii])
+    pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
 
@@ -263,23 +270,23 @@ rms = sqrt.(mean(resid.^2))
 rmed = mad(resid,normalize=false) # default is to equate to sdev
 
 # return results
-return clat1, clon1, cdep1, clat2, clon2, cdep2, cdist, torgdif, resid, rms, rmed, resol
+return cX1, cY1, cZ1, cX2, cY2, cZ2, cdist, torgdif, resid, rms, rmed, resol
 
 end
 
 ##### difclust2: L2 residual norm
-function difclust2(qlat0::Float64,qlon0::Float64,qdep0::Float64,
+function difclust2(qX0::Float64,qY0::Float64,qZ0::Float64,
     tdif::Vector{Float64},iph::Vector{Int8},
-    slat::Vector{Float64},slon::Vector{Float64},
-    qlat1::Vector{Float64},qlon1::Vector{Float64},
-    qdep1::Vector{Float64},qorg1::Vector{Float64},
-    qlat2::Vector{Float64},qlon2::Vector{Float64},
-    qdep2::Vector{Float64},qorg2::Vector{Float64},
-    ttTABs,boxwid::Float64,nit::Int64,degkm::Float64)
+    sX::Vector{Float64},sY::Vector{Float64},
+    qX1::Vector{Float64},qY1::Vector{Float64},
+    qZ1::Vector{Float64},qT1::Vector{Float64},
+    qX2::Vector{Float64},qY2::Vector{Float64},
+    qZ2::Vector{Float64},qT2::Vector{Float64},
+    ttTABs,boxwid::Float64,nit::Int64)
 
-# initialize some variables
-flatbest1, flonbest1, fdepbest1 = 0.0, 0.0, 0.0
-flatbest2, flonbest2, fdepbest2 = 0.0, 0.0, 0.0
+# initialize variables to track best solution
+fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
+fxbest2, fybest2, fzbest2 = 0.0, 0.0, 0.0
 torgdif = 0.0
 
 # extract npick
@@ -287,21 +294,17 @@ npick = length(tdif)
 resid = zeros(npick)
 
 # initialize box
-dlat0 = 0.0
-dlon0 = 0.0
-ddep0 = 0.0
-dlat = 0.5*boxwid/degkm
-cosqlat = cosd(qlat0)
-dlon = dlat/cosqlat
+dX0, dY0, dZ0 = 0.0, 0.0, 0.0 # C1 shift from initial centroid
+dX, dY = 0.5*boxwid, 0.5*boxwid # current box bounds
 
 # careful near surface (added 07/2018)
 zboxwid = boxwid
-if (qdep0 < 0.0)
+if (qZ0 < 0.0)
     zboxwid = min(1.0, boxwid)
-elseif (qdep0 < boxwid/2.0)
-    zboxwid = max(1.0,2.0*qdep0)
+elseif (qZ0 < boxwid/2.0)
+    zboxwid = max(1.0,2.0*qZ0)
 end
-ddep = 0.5*zboxwid
+dZ = 0.5*zboxwid # analagous to dX and dY
 
 # start iterations
 for it=1:nit
@@ -312,38 +315,38 @@ for it=1:nit
     
     # get trial locations: f1, f2 (3x3 grid for this box iteration)
     for iy = -1.0:1.0
-        flat1 = qlat0 + dlat0 + dlat*iy
-        flat2 = qlat0 - dlat0 - dlat*iy
+        fY1 = qY0 + dY0 + dY*iy # centroid + shift + trial offset
+        fY2 = qY0 - dY0 - dY*iy # centroid - shift - trial offset
         for ix = -1.0:1.0
-            flon1 = qlon0 + dlon0 + dlon*ix
-            flon2 = qlon0 - dlon0 - dlon*ix
+            fX1 = qX0 + dX0 + dX*ix  # centroid + shift + trial offset
+            fX2 = qX0 - dX0 - dX*ix # centroid - shift - trial offset
             for iz = -1.0:1.0
-                fdep1 = qdep0 + ddep0 + ddep*iz
-                fdep2 = qdep0 - ddep0 - ddep*iz
+                fZ1 = qZ0 + dZ0 + dZ*iz  # centroid + shift + trial offset
+                fZ2 = qZ0 - dZ0 - dZ*iz # centroid - shift - trial offset
                 
                 # compute predicted travel time and residuals w/observed
-                sdist1 = map_distance(qlat1.+flat1,qlon1.+flon1,slat,slon)
-                sdist2 = map_distance(qlat2.+flat2,qlon2.+flon2,slat,slon)                
+                sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
+                sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[iph[ii]](sdist1[ii],qdep1[ii]+fdep1)
-                    tt2 = ttTABs[iph[ii]](sdist2[ii],qdep2[ii]+fdep2)
-                    pdif = (tt2 + qorg2[ii]) - (tt1 + qorg1[ii])
+                    tt1 = ttTABs[iph[ii]](sdist1[ii],qZ1[ii]+fZ1)
+                    tt2 = ttTABs[iph[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
                 
-                # compute fit with L2 norm
+                # compute fit: L2 norm
                 residval = mean(resid)
                 fit = sum((resid.-residval).^2)
                 
                 # update best fit
                 if fit < fitbest
                     fitbest = fit
-                    flatbest1 = flat1
-                    flonbest1 = flon1
-                    fdepbest1 = fdep1
-                    flatbest2 = flat2
-                    flonbest2 = flon2
-                    fdepbest2 = fdep2
+                    fxbest1 = fX1
+                    fybest1 = fY1
+                    fzbest1 = fZ1
+                    fxbest2 = fX2
+                    fybest2 = fY2
+                    fzbest2 = fZ2
                     tbest = residval
                 end
                 
@@ -351,38 +354,38 @@ for it=1:nit
         end
     end # end of grid search
     
-    # update best position
-    dlat0 = flatbest1 - qlat0
-    dlon0 = flonbest1 - qlon0
-    ddep0 = fdepbest1 - qdep0
+    # update best shift
+    dX0 = fxbest1 - qX0
+    dY0 = fybest1 - qY0
+    dZ0 = fzbest1 - qZ0
     torgdif = tbest # otime difference: residual between observed and predicted tdif
 
     # shrink box by 2/3 each iteration
-    dlat *= 2.0/3.0      
-    dlon *= 2.0/3.0
-    ddep *= 2.0/3.0
+    dX *= 2.0/3.0      
+    dY *= 2.0/3.0
+    dZ *= 2.0/3.0
     
 end # end loop over iterations
 
 # output final locations
-clat1 = flatbest1
-clon1 = flonbest1
-cdep1 = fdepbest1
-clat2 = flatbest2
-clon2 = flonbest2
-cdep2 = fdepbest2
-resol = (dlat/(2.0/3.0))*degkm
+cX1 = fxbest1
+cY1 = fybest1
+cZ1 = fzbest1
+cX2 = fxbest2
+cY2 = fybest2
+cZ2 = fzbest2
+resol = dY/(2.0/3.0)
 
 # compute distance between cluster centroids
-cdist = sqrt((cdep2-cdep1)^2 + (map_distance(clat1,clon1,clat2,clon2))^2)
+cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
                 
 # compute residual between observed and predicted travel time
-sdist1 = map_distance(clat1.+qlat1,clon1.+qlon1,slat,slon)
-sdist2 = map_distance(clat2.+qlat2,clon2.+qlon2,slat,slon)
+sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
+sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[iph[ii]](sdist1[ii],cdep1+qdep1[ii])
-    tt2 = ttTABs[iph[ii]](sdist2[ii],cdep2+qdep2[ii])
-    pdif = (tt2 + qorg2[ii]) - (tt1 + qorg1[ii])
+    tt1 = ttTABs[iph[ii]](sdist1[ii],cZ1+qZ1[ii])
+    tt2 = ttTABs[iph[ii]](sdist2[ii],cZ2+qZ2[ii])
+    pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
 
@@ -391,23 +394,23 @@ rms = sqrt.(mean(resid.^2))
 rmed = mad(resid,normalize=false) # default is to equate to sdev
 
 # return results
-return clat1, clon1, cdep1, clat2, clon2, cdep2, cdist, torgdif, resid, rms, rmed, resol
+return cX1, cY1, cZ1, cX2, cY2, cZ2, cdist, torgdif, resid, rms, rmed, resol
 
 end
 
-##### difclust3: L3 (robust mean) residual norm
-function difclust3(qlat0::Float64,qlon0::Float64,qdep0::Float64,
+##### difclust3: L3 / Robomean Norm
+function difclust3(qX0::Float64,qY0::Float64,qZ0::Float64,
     tdif::Vector{Float64},iph::Vector{Int8},
-    slat::Vector{Float64},slon::Vector{Float64},
-    qlat1::Vector{Float64},qlon1::Vector{Float64},
-    qdep1::Vector{Float64},qorg1::Vector{Float64},
-    qlat2::Vector{Float64},qlon2::Vector{Float64},
-    qdep2::Vector{Float64},qorg2::Vector{Float64},
-    ttTABs,boxwid::Float64,nit::Int64,degkm::Float64)
+    sX::Vector{Float64},sY::Vector{Float64},
+    qX1::Vector{Float64},qY1::Vector{Float64},
+    qZ1::Vector{Float64},qT1::Vector{Float64},
+    qX2::Vector{Float64},qY2::Vector{Float64},
+    qZ2::Vector{Float64},qT2::Vector{Float64},
+    ttTABs,boxwid::Float64,nit::Int64)
 
-# initialize some variables
-flatbest1, flonbest1, fdepbest1 = 0.0, 0.0, 0.0
-flatbest2, flonbest2, fdepbest2 = 0.0, 0.0, 0.0
+# initialize variables to track best solution
+fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
+fxbest2, fybest2, fzbest2 = 0.0, 0.0, 0.0
 torgdif = 0.0
 
 # extract npick
@@ -415,21 +418,17 @@ npick = length(tdif)
 resid = zeros(npick)
 
 # initialize box
-dlat0 = 0.0
-dlon0 = 0.0
-ddep0 = 0.0
-dlat = 0.5*boxwid/degkm
-cosqlat = cosd(qlat0)
-dlon = dlat/cosqlat
+dX0, dY0, dZ0 = 0.0, 0.0, 0.0 # C1 shift from initial centroid
+dX, dY = 0.5*boxwid, 0.5*boxwid # current box bounds
 
 # careful near surface (added 07/2018)
 zboxwid = boxwid
-if (qdep0 < 0.0)
+if (qZ0 < 0.0)
     zboxwid = min(1.0, boxwid)
-elseif (qdep0 < boxwid/2.0)
-    zboxwid = max(1.0,2.0*qdep0)
+elseif (qZ0 < boxwid/2.0)
+    zboxwid = max(1.0,2.0*qZ0)
 end
-ddep = 0.5*zboxwid
+dZ = 0.5*zboxwid # analagous to dX and dY
 
 # start iterations
 for it=1:nit
@@ -440,37 +439,37 @@ for it=1:nit
     
     # get trial locations: f1, f2 (3x3 grid for this box iteration)
     for iy = -1.0:1.0
-        flat1 = qlat0 + dlat0 + dlat*iy
-        flat2 = qlat0 - dlat0 - dlat*iy
+        fY1 = qY0 + dY0 + dY*iy # centroid + shift + trial offset
+        fY2 = qY0 - dY0 - dY*iy # centroid - shift - trial offset
         for ix = -1.0:1.0
-            flon1 = qlon0 + dlon0 + dlon*ix
-            flon2 = qlon0 - dlon0 - dlon*ix
+            fX1 = qX0 + dX0 + dX*ix  # centroid + shift + trial offset
+            fX2 = qX0 - dX0 - dX*ix # centroid - shift - trial offset
             for iz = -1.0:1.0
-                fdep1 = qdep0 + ddep0 + ddep*iz
-                fdep2 = qdep0 - ddep0 - ddep*iz
+                fZ1 = qZ0 + dZ0 + dZ*iz  # centroid + shift + trial offset
+                fZ2 = qZ0 - dZ0 - dZ*iz # centroid - shift - trial offset
                 
                 # compute predicted travel time and residuals w/observed
-                sdist1 = map_distance(qlat1.+flat1,qlon1.+flon1,slat,slon)
-                sdist2 = map_distance(qlat2.+flat2,qlon2.+flon2,slat,slon)                
+                sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
+                sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[iph[ii]](sdist1[ii],qdep1[ii]+fdep1)
-                    tt2 = ttTABs[iph[ii]](sdist2[ii],qdep2[ii]+fdep2)
-                    pdif = (tt2 + qorg2[ii]) - (tt1 + qorg1[ii])
+                    tt1 = ttTABs[iph[ii]](sdist1[ii],qZ1[ii]+fZ1)
+                    tt2 = ttTABs[iph[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
                 
-                # compute fit (depends on norm)
+                # compute fit: L3 norm
                 residval, fit = robomean(resid,0.1,10)
                 
                 # update best fit
                 if fit < fitbest
                     fitbest = fit
-                    flatbest1 = flat1
-                    flonbest1 = flon1
-                    fdepbest1 = fdep1
-                    flatbest2 = flat2
-                    flonbest2 = flon2
-                    fdepbest2 = fdep2
+                    fxbest1 = fX1
+                    fybest1 = fY1
+                    fzbest1 = fZ1
+                    fxbest2 = fX2
+                    fybest2 = fY2
+                    fzbest2 = fZ2
                     tbest = residval
                 end
                 
@@ -478,38 +477,38 @@ for it=1:nit
         end
     end # end of grid search
     
-    # update best position
-    dlat0 = flatbest1 - qlat0
-    dlon0 = flonbest1 - qlon0
-    ddep0 = fdepbest1 - qdep0
+    # update best shift
+    dX0 = fxbest1 - qX0
+    dY0 = fybest1 - qY0
+    dZ0 = fzbest1 - qZ0
     torgdif = tbest # otime difference: residual between observed and predicted tdif
 
     # shrink box by 2/3 each iteration
-    dlat *= 2.0/3.0      
-    dlon *= 2.0/3.0
-    ddep *= 2.0/3.0
+    dX *= 2.0/3.0      
+    dY *= 2.0/3.0
+    dZ *= 2.0/3.0
     
 end # end loop over iterations
 
 # output final locations
-clat1 = flatbest1
-clon1 = flonbest1
-cdep1 = fdepbest1
-clat2 = flatbest2
-clon2 = flonbest2
-cdep2 = fdepbest2
-resol = (dlat/(2.0/3.0))*degkm
+cX1 = fxbest1
+cY1 = fybest1
+cZ1 = fzbest1
+cX2 = fxbest2
+cY2 = fybest2
+cZ2 = fzbest2
+resol = dY/(2.0/3.0)
 
 # compute distance between cluster centroids
-cdist = sqrt((cdep2-cdep1)^2 + (map_distance(clat1,clon1,clat2,clon2))^2)
+cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
                 
 # compute residual between observed and predicted travel time
-sdist1 = map_distance(clat1.+qlat1,clon1.+qlon1,slat,slon)
-sdist2 = map_distance(clat2.+qlat2,clon2.+qlon2,slat,slon)
+sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
+sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[iph[ii]](sdist1[ii],cdep1+qdep1[ii])
-    tt2 = ttTABs[iph[ii]](sdist2[ii],cdep2+qdep2[ii])
-    pdif = (tt2 + qorg2[ii]) - (tt1 + qorg1[ii])
+    tt1 = ttTABs[iph[ii]](sdist1[ii],cZ1+qZ1[ii])
+    tt2 = ttTABs[iph[ii]](sdist2[ii],cZ2+qZ2[ii])
+    pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
 
@@ -518,7 +517,7 @@ rms = sqrt.(mean(resid.^2))
 rmed = mad(resid,normalize=false) # default is to equate to sdev
 
 # return results
-return clat1, clon1, cdep1, clat2, clon2, cdep2, cdist, torgdif, resid, rms, rmed, resol
+return cX1, cY1, cZ1, cX2, cY2, cZ2, cdist, torgdif, resid, rms, rmed, resol
 
 end
 
@@ -529,8 +528,8 @@ end
 # Inputs:
 # - pqix1, pqix2: vectors of serial event numbers for each event pair
 # - ixx1, ixx2: start and stop indices in xcorr arrays for each pair
-# - tdif, slat, slon, iphase: differential travel time, station lat, station lon, phase for each xcorr data
-# - qlats, qlons, qdeps: initial event locations
+# - tdif, sX, sY, iphase: differential travel time, station position, phase for each xcorr data
+# - qXs, qXs, qZs: initial event locations
 # - ttTABS: P and S travel time interpolation objects
 # - nit, boxwid, degkm, irelonorm: difclust parameters
 # - rmsmax, rmedmax, distmax, distmax2, hshiftmax, vshifmax, torgdifmax: cluster merge parameters
@@ -538,37 +537,36 @@ end
 # - maxlink: maximum number of event pairs used to link clusters
 #
 # Returns:
-# - brlats, brlons, brdeps: relocated event locations
+# - brXs, brYs, brZs: relocated event locations
 # - brcids, bnb: cluster ids and number of events in each cluster 
 #
 # function with i32 ixx arrays
 function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int32},ixx2::Vector{Int32},
-    tdif::Vector{Float64},slat::Vector{Float64},slon::Vector{Float64},iphase::Vector{Int8},
-    qlats::Vector{Float64},qlons::Vector{Float64},qdeps::Vector{Float64},ttTABs,
-    nit::Int64,boxwid::Float64,degkm::Float64,irelonorm::Int64,rmsmax::Float64,rmedmax::Float64,
+    tdif::Vector{Float64},sX::Vector{Float64},sY::Vector{Float64},iphase::Vector{Int8},
+    qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
+    nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float64,rmedmax::Float64,
     distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float64,
     nupdate::Int64,maxlink::Int64)
 
     # setup parameters
-    cdepmin = min(0.0,minimum(qdeps))
-    hshiftmaxD2 = (hshiftmax/degkm)^2 # in squared degrees
+    cZmin = min(0.0,minimum(qZs))
     distmax22 = distmax^2 # in squared km
 
     # array sizes
-    nq = length(qlats)
+    nq = length(qXs)
     bnpair = length(pqix1)
 
     # initialize relocated event arrays
-    brlats = copy(qlats)
-    brlons = copy(qlons)
-    brdeps = copy(qdeps)
+    brXs = copy(qXs)
+    brYs = copy(qYs)
+    brZs = copy(qZs)
     brorgs = zeros(nq)
     brcids = Vector{Int32}(1:nq)
 
     # initialize clustering tree arrays
-    btlats = copy(brlats)
-    btlons = copy(brlons)
-    btdeps = copy(brdeps)
+    btXs = copy(brXs)
+    btYs = copy(brYs)
+    btZs = copy(brZs)
     btorgs = zeros(nq)
     btnbranch = ones(Int32,nq)
 
@@ -595,8 +593,7 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     nb1, nb2 = btnbranch[qc1], btnbranch[qc2]
 
     # check to see if clusters are too far apart
-    cdist22 = (btdeps[qc2]-btdeps[qc1])^2 + map_distance(
-    btlats[qc1],btlons[qc1],btlats[qc2],btlons[qc2])^2
+    cdist22 = (btXs[qc2]-btXs[qc1])^2 + (btYs[qc2]-btYs[qc1])^2 + (btZs[qc2]-btZs[qc1])^2
     if cdist22 > distmax22
         continue
     end
@@ -633,71 +630,71 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     npick = sum([ixx2[jj] - ixx1[jj] + 1 for jj in linx])
 
     # extract locations relative to centroid
-    dqlat1, dqlon1 = zeros(npick),zeros(npick)
-    dqdep1, dqorg1 = zeros(npick),zeros(npick)
-    dqlat2, dqlon2 = zeros(npick),zeros(npick)
-    dqdep2, dqorg2 = zeros(npick),zeros(npick)
-    phase21, slat21, slon21 = zeros(Int8,npick), zeros(npick), zeros(npick)
+    dqX1, dqY1 = zeros(npick),zeros(npick)
+    dqZ1, dqorg1 = zeros(npick),zeros(npick)
+    dqX2, dqY2 = zeros(npick),zeros(npick)
+    dqZ2, dqorg2 = zeros(npick),zeros(npick)
+    phase21, sX21, sY21 = zeros(Int8,npick), zeros(npick), zeros(npick)
     tdif21 = zeros(npick)
     ix1 = 1 # start index for event pair in the arrays above
     @inbounds for jj in linx
         pix1, pix2, jx1, jx2 = pqix1[jj],pqix2[jj],ixx1[jj],ixx2[jj]
         ix2 = ix1 + (jx2 - jx1) # end-index in npick array
         if brcids[pix1]==qc1 # regular: event 1 in cluster 1, event 2 in cluster 2
-            dqlat1[ix1:ix2] .= brlats[pix1]-btlats[qc1]
-            dqlat2[ix1:ix2] .= brlats[pix2]-btlats[qc2]
-            dqlon1[ix1:ix2] .= brlons[pix1]-btlons[qc1]
-            dqlon2[ix1:ix2] .= brlons[pix2]-btlons[qc2]
-            dqdep1[ix1:ix2] .= brdeps[pix1]-btdeps[qc1]
-            dqdep2[ix1:ix2] .= brdeps[pix2]-btdeps[qc2]
+            dqX1[ix1:ix2] .= brXs[pix1]-btXs[qc1]
+            dqX2[ix1:ix2] .= brXs[pix2]-btXs[qc2]
+            dqY1[ix1:ix2] .= brYs[pix1]-btYs[qc1]
+            dqY2[ix1:ix2] .= brYs[pix2]-btYs[qc2]
+            dqZ1[ix1:ix2] .= brZs[pix1]-btZs[qc1]
+            dqZ2[ix1:ix2] .= brZs[pix2]-btZs[qc2]
             dqorg1[ix1:ix2] .= brorgs[pix1]-btorgs[qc1]
             dqorg2[ix1:ix2] .= brorgs[pix2]-btorgs[qc2]
             tdif21[ix1:ix2] .= tdif[jx1:jx2] # keep the tdif with same sign
         else # flipped: event 1 in cluster 2, event 2 in cluster 1
-            dqlat1[ix1:ix2] .= brlats[pix2]-btlats[qc1]
-            dqlat2[ix1:ix2] .= brlats[pix1]-btlats[qc2]
-            dqlon1[ix1:ix2] .= brlons[pix2]-btlons[qc1]
-            dqlon2[ix1:ix2] .= brlons[pix1]-btlons[qc2]
-            dqdep1[ix1:ix2] .= brdeps[pix2]-btdeps[qc1]
-            dqdep2[ix1:ix2] .= brdeps[pix1]-btdeps[qc2]
+            dqX1[ix1:ix2] .= brXs[pix2]-btXs[qc1]
+            dqX2[ix1:ix2] .= brXs[pix1]-btXs[qc2]
+            dqY1[ix1:ix2] .= brYs[pix2]-btYs[qc1]
+            dqY2[ix1:ix2] .= brYs[pix1]-btYs[qc2]
+            dqZ1[ix1:ix2] .= brZs[pix2]-btZs[qc1]
+            dqZ2[ix1:ix2] .= brZs[pix1]-btZs[qc2]
             dqorg1[ix1:ix2] .= brorgs[pix2]-btorgs[qc1]
             dqorg2[ix1:ix2] .= brorgs[pix1]-btorgs[qc2]
             tdif21[ix1:ix2] .= -tdif[jx1:jx2] # flip the tdif
         end
-        slat21[ix1:ix2] .= slat[jx1:jx2] # stays same
-        slon21[ix1:ix2] .= slon[jx1:jx2] # stays same
+        sX21[ix1:ix2] .= sX[jx1:jx2] # stays same
+        sY21[ix1:ix2] .= sY[jx1:jx2] # stays same
         phase21[ix1:ix2] .= iphase[jx1:jx2] # stays same
         ix1 = ix2 + 1 # update start index in npick array
     end
 
     # unweighted cluster centroid
-    clat0 = (btlats[qc1] + btlats[qc2]) / 2.0
-    clon0 = (btlons[qc1] + btlons[qc2]) / 2.0
-    cdep0 = (btdeps[qc1] + btdeps[qc2]) / 2.0
+    cX0 = (btXs[qc1] + btXs[qc2]) / 2.0
+    cY0 = (btYs[qc1] + btYs[qc2]) / 2.0
+    cZ0 = (btZs[qc1] + btZs[qc2]) / 2.0
 
     # run difclust (relocation norms 1, 2, 3)
     if irelonorm == 1
-        clat1, clon1, cdep1, clat2, clon2, cdep2, 
+        cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust1(
-        clat0,clon0,cdep0,tdif21,phase21, slat21, slon21,
-        dqlat1, dqlon1, dqdep1, dqorg1, dqlat2, dqlon2, dqdep2, dqorg2,
-        ttTABs,boxwid,nit,degkm)
+        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        ttTABs,boxwid,nit)
     elseif irelonorm == 2
-        clat1, clon1, cdep1, clat2, clon2, cdep2, 
+        cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust2(
-        clat0,clon0,cdep0,tdif21,phase21, slat21, slon21,
-        dqlat1, dqlon1, dqdep1, dqorg1, dqlat2, dqlon2, dqdep2, dqorg2,
-        ttTABs,boxwid,nit,degkm)
+        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        ttTABs,boxwid,nit)
     else
-        clat1, clon1, cdep1, clat2, clon2, cdep2, 
+        cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust3(
-            clat0,clon0,cdep0,tdif21,phase21, slat21, slon21,
-            dqlat1, dqlon1, dqdep1, dqorg1, dqlat2, dqlon2, dqdep2, dqorg2,
-            ttTABs,boxwid,nit,degkm)
+        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        ttTABs,boxwid,nit)
     end
 
     # careful with cluster mergers near surface
-    if (min(cdep1,cdep2) < cdepmin)
+    if (min(cZ1,cZ2) < cZmin)
         continue
     end
 
@@ -720,40 +717,40 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
 
     # original centroid of combined cluster
     #creflat = cosd(clat0) # needed to scale dlon
-    cxlat00 = btlats[qc1]*fracC1+btlats[qc2]*fracC2
-    cxlon00 = btlons[qc1]*fracC1+btlons[qc2]*fracC2
-    cxdep00 = btdeps[qc1]*fracC1+btdeps[qc2]*fracC2
+    cxX00 = btXs[qc1]*fracC1+btXs[qc2]*fracC2
+    cxY00 = btYs[qc1]*fracC1+btYs[qc2]*fracC2
+    cxZ00 = btZs[qc1]*fracC1+btZs[qc2]*fracC2
 
     # new centroid of combined cluster
-    cxlat11 = clat1*fracC1+clat2*fracC2
-    cxlon11 = clon1*fracC1+clon2*fracC2
-    cxdep11 = cdep1*fracC1+cdep2*fracC2
+    cxX11 = cX1*fracC1+cX2*fracC2
+    cxY11 = cY1*fracC1+cY2*fracC2
+    cxZ11 = cZ1*fracC1+cZ2*fracC2
 
     # offset between two (b/c not all links used)
-    dcxlat = cxlat11-cxlat00
-    dcxlon = cxlon11-cxlon00
-    dcxdep = cxdep11-cxdep00
+    dcxX = cxX11-cxX00
+    dcxY = cxY11-cxY00
+    dcxZ = cxZ11-cxZ00
 
 
     # check relative shift of cluster 1 (subtracting possible DC offset)
     # offsets for cluster 1: new loc - old loc
-    qlat_off1 = clat1 - btlats[qc1]
-    qlon_off1 = clon1 - btlons[qc1]
-    qdep_off1 = cdep1 - btdeps[qc1]        
-    if abs(qdep_off1-dcxdep) > vshiftmax
+    qX_off1 = cX1 - btXs[qc1]
+    qY_off1 = cY1 - btYs[qc1]
+    qZ_off1 = cZ1 - btZs[qc1]        
+    if abs(qZ_off1-dcxZ) > vshiftmax
         continue
-    elseif ((qlon_off1-dcxlon)*cosd(clat0))^2 + (qlat_off1-dcxlat)^2 > hshiftmaxD2 # in squared degrees
+    elseif sqrt((qX_off1-dcxX)^2 + (qY_off1-dcxY)^2) > hshiftmax
         continue
     end 
 
     # check relative shift of cluster 2 (subtracting possible DC offset)
     # offsets for cluster 2: new loc - old loc
-    qlat_off2 = clat2 - btlats[qc2]
-    qlon_off2 = clon2 - btlons[qc2]
-    qdep_off2 = cdep2 - btdeps[qc2]
-    if abs(qdep_off2 - dcxdep) > vshiftmax
+    qX_off2 = cX2 - btXs[qc2]
+    qY_off2 = cY2 - btYs[qc2]
+    qZ_off2 = cZ2 - btZs[qc2]        
+    if abs(qZ_off2-dcxZ) > vshiftmax
         continue
-    elseif ((qlon_off2-dcxlon)*cosd(clat0))^2 + (qlat_off2-dcxlat)^2 > hshiftmaxD2 # in squared degrees
+    elseif sqrt((qX_off2-dcxX)^2 + (qY_off2-dcxY)^2) > hshiftmax
         continue
     end 
 
@@ -769,15 +766,15 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     cxorg11 = fracC1*qtim_off1 + fracC2*qtim_off2
 
     # update locations: cluster 1
-    brlats[c1qixs] .+= qlat_off1
-    brlons[c1qixs] .+= qlon_off1
-    brdeps[c1qixs] .+= qdep_off1
+    brXs[c1qixs] .+= qX_off1
+    brYs[c1qixs] .+= qY_off1
+    brZs[c1qixs] .+= qZ_off1
     brorgs[c1qixs] .+= qtim_off1
 
     # update locations: cluster 2
-    brlats[c2qixs] .+= qlat_off2
-    brlons[c2qixs] .+= qlon_off2
-    brdeps[c2qixs] .+= qdep_off2
+    brXs[c2qixs] .+= qX_off2
+    brYs[c2qixs] .+= qY_off2
+    brZs[c2qixs] .+= qZ_off2
     brorgs[c2qixs] .+= qtim_off2
 
     # evacuate tree 2, assign events to tree 1
@@ -797,12 +794,12 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     iclust = cid2qixD[qc1]
     @inbounds begin
     brorgs[iclust] .-= cxorg11 #mean(brorgs[iclust])
-    brlats[iclust] .+= (cxlat00 - cxlat11)
-    btlats[iclust] .= cxlat00
-    brlons[iclust] .+= (cxlon00 - cxlon11)
-    btlons[iclust] .= cxlon00
-    brdeps[iclust] .+= (cxdep00 - cxdep11)
-    btdeps[iclust] .= cxdep00
+    brXs[iclust] .+= (cxX00 - cxX11)
+    btXs[iclust] .= cxX00
+    brYs[iclust] .+= (cxY00 - cxY11)
+    btYs[iclust] .= cxY00
+    brZs[iclust] .+= (cxZ00 - cxZ11)
+    btZs[iclust] .= cxZ00
     #btorgs[iclust] .= 0.0 # always zero, never updated
     end
 
@@ -810,37 +807,38 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
 
     # return results
     bnb = btnbranch[brcids]
-    return brlats, brlons, brdeps, brorgs, brcids, bnb
+    return brXs, brYs, brZs, brorgs, brcids, bnb
 end
 
-# function with i64 ixx arrays
+##################
+
+####### function with i64 ixx arrays
 function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int64},ixx2::Vector{Int64},
-    tdif::Vector{Float64},slat::Vector{Float64},slon::Vector{Float64},iphase::Vector{Int8},
-    qlats::Vector{Float64},qlons::Vector{Float64},qdeps::Vector{Float64},ttTABs,
-    nit::Int64,boxwid::Float64,degkm::Float64,irelonorm::Int64,rmsmax::Float64,rmedmax::Float64,
+    tdif::Vector{Float64},sX::Vector{Float64},sY::Vector{Float64},iphase::Vector{Int8},
+    qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
+    nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float64,rmedmax::Float64,
     distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float64,
     nupdate::Int64,maxlink::Int64)
 
     # setup parameters
-    cdepmin = min(0.0,minimum(qdeps))
-    hshiftmaxD2 = (hshiftmax/degkm)^2 # in squared degrees
+    cZmin = min(0.0,minimum(qZs))
     distmax22 = distmax^2 # in squared km
 
     # array sizes
-    nq = length(qlats)
+    nq = length(qXs)
     bnpair = length(pqix1)
 
     # initialize relocated event arrays
-    brlats = copy(qlats)
-    brlons = copy(qlons)
-    brdeps = copy(qdeps)
+    brXs = copy(qXs)
+    brYs = copy(qYs)
+    brZs = copy(qZs)
     brorgs = zeros(nq)
     brcids = Vector{Int32}(1:nq)
 
     # initialize clustering tree arrays
-    btlats = copy(brlats)
-    btlons = copy(brlons)
-    btdeps = copy(brdeps)
+    btXs = copy(brXs)
+    btYs = copy(brYs)
+    btZs = copy(brZs)
     btorgs = zeros(nq)
     btnbranch = ones(Int32,nq)
 
@@ -867,8 +865,7 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     nb1, nb2 = btnbranch[qc1], btnbranch[qc2]
 
     # check to see if clusters are too far apart
-    cdist22 = (btdeps[qc2]-btdeps[qc1])^2 + map_distance(
-    btlats[qc1],btlons[qc1],btlats[qc2],btlons[qc2])^2
+    cdist22 = (btXs[qc2]-btXs[qc1])^2 + (btYs[qc2]-btYs[qc1])^2 + (btZs[qc2]-btZs[qc1])^2
     if cdist22 > distmax22
         continue
     end
@@ -905,84 +902,85 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     npick = sum([ixx2[jj] - ixx1[jj] + 1 for jj in linx])
 
     # extract locations relative to centroid
-    dqlat1, dqlon1 = zeros(npick),zeros(npick)
-    dqdep1, dqorg1 = zeros(npick),zeros(npick)
-    dqlat2, dqlon2 = zeros(npick),zeros(npick)
-    dqdep2, dqorg2 = zeros(npick),zeros(npick)
-    phase21, slat21, slon21 = zeros(Int8,npick), zeros(npick), zeros(npick)
+    dqX1, dqY1 = zeros(npick),zeros(npick)
+    dqZ1, dqorg1 = zeros(npick),zeros(npick)
+    dqX2, dqY2 = zeros(npick),zeros(npick)
+    dqZ2, dqorg2 = zeros(npick),zeros(npick)
+    phase21, sX21, sY21 = zeros(Int8,npick), zeros(npick), zeros(npick)
     tdif21 = zeros(npick)
     ix1 = 1 # start index for event pair in the arrays above
     @inbounds for jj in linx
         pix1, pix2, jx1, jx2 = pqix1[jj],pqix2[jj],ixx1[jj],ixx2[jj]
         ix2 = ix1 + (jx2 - jx1) # end-index in npick array
         if brcids[pix1]==qc1 # regular: event 1 in cluster 1, event 2 in cluster 2
-            dqlat1[ix1:ix2] .= brlats[pix1]-btlats[qc1]
-            dqlat2[ix1:ix2] .= brlats[pix2]-btlats[qc2]
-            dqlon1[ix1:ix2] .= brlons[pix1]-btlons[qc1]
-            dqlon2[ix1:ix2] .= brlons[pix2]-btlons[qc2]
-            dqdep1[ix1:ix2] .= brdeps[pix1]-btdeps[qc1]
-            dqdep2[ix1:ix2] .= brdeps[pix2]-btdeps[qc2]
+            dqX1[ix1:ix2] .= brXs[pix1]-btXs[qc1]
+            dqX2[ix1:ix2] .= brXs[pix2]-btXs[qc2]
+            dqY1[ix1:ix2] .= brYs[pix1]-btYs[qc1]
+            dqY2[ix1:ix2] .= brYs[pix2]-btYs[qc2]
+            dqZ1[ix1:ix2] .= brZs[pix1]-btZs[qc1]
+            dqZ2[ix1:ix2] .= brZs[pix2]-btZs[qc2]
             dqorg1[ix1:ix2] .= brorgs[pix1]-btorgs[qc1]
             dqorg2[ix1:ix2] .= brorgs[pix2]-btorgs[qc2]
             tdif21[ix1:ix2] .= tdif[jx1:jx2] # keep the tdif with same sign
         else # flipped: event 1 in cluster 2, event 2 in cluster 1
-            dqlat1[ix1:ix2] .= brlats[pix2]-btlats[qc1]
-            dqlat2[ix1:ix2] .= brlats[pix1]-btlats[qc2]
-            dqlon1[ix1:ix2] .= brlons[pix2]-btlons[qc1]
-            dqlon2[ix1:ix2] .= brlons[pix1]-btlons[qc2]
-            dqdep1[ix1:ix2] .= brdeps[pix2]-btdeps[qc1]
-            dqdep2[ix1:ix2] .= brdeps[pix1]-btdeps[qc2]
+            dqX1[ix1:ix2] .= brXs[pix2]-btXs[qc1]
+            dqX2[ix1:ix2] .= brXs[pix1]-btXs[qc2]
+            dqY1[ix1:ix2] .= brYs[pix2]-btYs[qc1]
+            dqY2[ix1:ix2] .= brYs[pix1]-btYs[qc2]
+            dqZ1[ix1:ix2] .= brZs[pix2]-btZs[qc1]
+            dqZ2[ix1:ix2] .= brZs[pix1]-btZs[qc2]
             dqorg1[ix1:ix2] .= brorgs[pix2]-btorgs[qc1]
             dqorg2[ix1:ix2] .= brorgs[pix1]-btorgs[qc2]
             tdif21[ix1:ix2] .= -tdif[jx1:jx2] # flip the tdif
         end
-        slat21[ix1:ix2] .= slat[jx1:jx2] # stays same
-        slon21[ix1:ix2] .= slon[jx1:jx2] # stays same
+        sX21[ix1:ix2] .= sX[jx1:jx2] # stays same
+        sY21[ix1:ix2] .= sY[jx1:jx2] # stays same
         phase21[ix1:ix2] .= iphase[jx1:jx2] # stays same
         ix1 = ix2 + 1 # update start index in npick array
     end
 
     # unweighted cluster centroid
-    clat0 = (btlats[qc1] + btlats[qc2]) / 2.0
-    clon0 = (btlons[qc1] + btlons[qc2]) / 2.0
-    cdep0 = (btdeps[qc1] + btdeps[qc2]) / 2.0
+    cX0 = (btXs[qc1] + btXs[qc2]) / 2.0
+    cY0 = (btYs[qc1] + btYs[qc2]) / 2.0
+    cZ0 = (btZs[qc1] + btZs[qc2]) / 2.0
 
     # run difclust (relocation norms 1, 2, 3)
     if irelonorm == 1
-        clat1, clon1, cdep1, clat2, clon2, cdep2, 
+        cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust1(
-        clat0,clon0,cdep0,tdif21,phase21, slat21, slon21,
-        dqlat1, dqlon1, dqdep1, dqorg1, dqlat2, dqlon2, dqdep2, dqorg2,
-        ttTABs,boxwid,nit,degkm)
+        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        ttTABs,boxwid,nit)
     elseif irelonorm == 2
-        clat1, clon1, cdep1, clat2, clon2, cdep2, 
+        cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust2(
-        clat0,clon0,cdep0,tdif21,phase21, slat21, slon21,
-        dqlat1, dqlon1, dqdep1, dqorg1, dqlat2, dqlon2, dqdep2, dqorg2,
-        ttTABs,boxwid,nit,degkm)
+        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        ttTABs,boxwid,nit)
     else
-        clat1, clon1, cdep1, clat2, clon2, cdep2, 
+        cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust3(
-            clat0,clon0,cdep0,tdif21,phase21, slat21, slon21,
-            dqlat1, dqlon1, dqdep1, dqorg1, dqlat2, dqlon2, dqdep2, dqorg2,
-            ttTABs,boxwid,nit,degkm)
+        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        ttTABs,boxwid,nit)
     end
 
     # careful with cluster mergers near surface
-    if (min(cdep1,cdep2) < cdepmin)
+    if (min(cZ1,cZ2) < cZmin)
+        continue
+    end
+
+    # reject cluster merger if rms or median absolute residual too large or relocated dist to far
+    if ((rms > rmsmax) | (rmed > rmedmax) | (cdist > distmax2))
         continue
     end
 
     # for robustness
     if abs(torgdif > torgdifmax)
         println("LARGE ORIGIN TIME CORRECTION: $torgdif")
-        println("Likely xcor data or event list error!")
-        exit()
-    end
-
-    # reject cluster merger if rms or median absolute residual too large or relocated dist to far
-    if ((rms > rmsmax) | (rmed > rmedmax) | (cdist > distmax2))
+        println("Possible xcor data or event list error!")
         continue
+        #exit()
     end
 
     # fraction of events in each cluster
@@ -991,40 +989,40 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
 
     # original centroid of combined cluster
     #creflat = cosd(clat0) # needed to scale dlon
-    cxlat00 = btlats[qc1]*fracC1+btlats[qc2]*fracC2
-    cxlon00 = btlons[qc1]*fracC1+btlons[qc2]*fracC2
-    cxdep00 = btdeps[qc1]*fracC1+btdeps[qc2]*fracC2
+    cxX00 = btXs[qc1]*fracC1+btXs[qc2]*fracC2
+    cxY00 = btYs[qc1]*fracC1+btYs[qc2]*fracC2
+    cxZ00 = btZs[qc1]*fracC1+btZs[qc2]*fracC2
 
     # new centroid of combined cluster
-    cxlat11 = clat1*fracC1+clat2*fracC2
-    cxlon11 = clon1*fracC1+clon2*fracC2
-    cxdep11 = cdep1*fracC1+cdep2*fracC2
+    cxX11 = cX1*fracC1+cX2*fracC2
+    cxY11 = cY1*fracC1+cY2*fracC2
+    cxZ11 = cZ1*fracC1+cZ2*fracC2
 
     # offset between two (b/c not all links used)
-    dcxlat = cxlat11-cxlat00
-    dcxlon = cxlon11-cxlon00
-    dcxdep = cxdep11-cxdep00
+    dcxX = cxX11-cxX00
+    dcxY = cxY11-cxY00
+    dcxZ = cxZ11-cxZ00
 
 
     # check relative shift of cluster 1 (subtracting possible DC offset)
     # offsets for cluster 1: new loc - old loc
-    qlat_off1 = clat1 - btlats[qc1]
-    qlon_off1 = clon1 - btlons[qc1]
-    qdep_off1 = cdep1 - btdeps[qc1]        
-    if abs(qdep_off1-dcxdep) > vshiftmax
+    qX_off1 = cX1 - btXs[qc1]
+    qY_off1 = cY1 - btYs[qc1]
+    qZ_off1 = cZ1 - btZs[qc1]        
+    if abs(qZ_off1-dcxZ) > vshiftmax
         continue
-    elseif ((qlon_off1-dcxlon)*cosd(clat0))^2 + (qlat_off1-dcxlat)^2 > hshiftmaxD2 # in squared degrees
+    elseif sqrt((qX_off1-dcxX)^2 + (qY_off1-dcxY)^2) > hshiftmax
         continue
     end 
 
     # check relative shift of cluster 2 (subtracting possible DC offset)
     # offsets for cluster 2: new loc - old loc
-    qlat_off2 = clat2 - btlats[qc2]
-    qlon_off2 = clon2 - btlons[qc2]
-    qdep_off2 = cdep2 - btdeps[qc2]
-    if abs(qdep_off2 - dcxdep) > vshiftmax
+    qX_off2 = cX2 - btXs[qc2]
+    qY_off2 = cY2 - btYs[qc2]
+    qZ_off2 = cZ2 - btZs[qc2]        
+    if abs(qZ_off2-dcxZ) > vshiftmax
         continue
-    elseif ((qlon_off2-dcxlon)*cosd(clat0))^2 + (qlat_off2-dcxlat)^2 > hshiftmaxD2 # in squared degrees
+    elseif sqrt((qX_off2-dcxX)^2 + (qY_off2-dcxY)^2) > hshiftmax
         continue
     end 
 
@@ -1040,15 +1038,15 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     cxorg11 = fracC1*qtim_off1 + fracC2*qtim_off2
 
     # update locations: cluster 1
-    brlats[c1qixs] .+= qlat_off1
-    brlons[c1qixs] .+= qlon_off1
-    brdeps[c1qixs] .+= qdep_off1
+    brXs[c1qixs] .+= qX_off1
+    brYs[c1qixs] .+= qY_off1
+    brZs[c1qixs] .+= qZ_off1
     brorgs[c1qixs] .+= qtim_off1
 
     # update locations: cluster 2
-    brlats[c2qixs] .+= qlat_off2
-    brlons[c2qixs] .+= qlon_off2
-    brdeps[c2qixs] .+= qdep_off2
+    brXs[c2qixs] .+= qX_off2
+    brYs[c2qixs] .+= qY_off2
+    brZs[c2qixs] .+= qZ_off2
     brorgs[c2qixs] .+= qtim_off2
 
     # evacuate tree 2, assign events to tree 1
@@ -1068,12 +1066,12 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     iclust = cid2qixD[qc1]
     @inbounds begin
     brorgs[iclust] .-= cxorg11 #mean(brorgs[iclust])
-    brlats[iclust] .+= (cxlat00 - cxlat11)
-    btlats[iclust] .= cxlat00
-    brlons[iclust] .+= (cxlon00 - cxlon11)
-    btlons[iclust] .= cxlon00
-    brdeps[iclust] .+= (cxdep00 - cxdep11)
-    btdeps[iclust] .= cxdep00
+    brXs[iclust] .+= (cxX00 - cxX11)
+    btXs[iclust] .= cxX00
+    brYs[iclust] .+= (cxY00 - cxY11)
+    btYs[iclust] .= cxY00
+    brZs[iclust] .+= (cxZ00 - cxZ11)
+    btZs[iclust] .= cxZ00
     #btorgs[iclust] .= 0.0 # always zero, never updated
     end
 
@@ -1081,5 +1079,5 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
 
     # return results
     bnb = btnbranch[brcids]
-    return brlats, brlons, brdeps, brorgs, brcids, bnb
+    return brXs, brYs, brZs, brorgs, brcids, bnb
 end
