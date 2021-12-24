@@ -2,16 +2,15 @@
 
 ### Import packages
 
-# Packages
+# External Packages
 using Printf
 using DataFrames
-using StatsKit
 using Random
 using Dates
-using Interpolations
+using Proj4: Transformation, inv
 
-# GrowClust1D
-using GrowClust1D
+# GrowClust3D
+using GrowClust3D
 
 ### Define Algorithm Parameters
 
@@ -45,7 +44,9 @@ const shallowmode = "flat" # option for how to treat shallow seismicity
                        # reflect treats negative depths as equivalent to -depth; ok for true elevations
 
 # ------- Geodetic parameters -------------
-const degkm = 111.1949266
+const degkm = 111.1949266 # for simple degree / km conversion
+const mapproj = "tmerc" # for Proj4
+const mapdatum = "WGS84" # for Proj4
 
 
 ### Read Input File
@@ -139,20 +140,57 @@ println("> Log file: ", inpD["fout_log"])
 println("\nReading event list:")
 @time qdf = read_evlist(inpD["fin_evlist"],inpD["evlist_fmt"])
 qid2qnum = Dict(zip(qdf.qid,qdf.qix))# maps event id to serial number
-show(qdf)
-println()
+qlat0 = median(qdf.qlat)
+qlon0 = median(qdf.qlon)
+println("Median event location: $qlon0 $qlat0")
 
 ### Read Stations
 print("\nReading station list")
 @time sdf = read_stlist(inpD["fin_stlist"],inpD["stlist_fmt"])
+
+# ### Map Projection
+
+# # setup projection
+# mproj = Proj4.Projection("+proj=longlat +datum=$mapdatum +no_defs")
+# tproj = Proj4.Projection("+proj=tmerc +datum=$mapdatum +lat_0=$qlat0 +lon_0=$qlon0 +units=km")
+proj = Transformation("+proj=longlat +datum=$mapdatum +no_defs",
+    "+proj=$mapproj +datum=$mapdatum +lat_0=$qlat0 +lon_0=$qlon0 +units=km")
+iproj = inv(proj) # inverse
+
+# project station coordinates
+sdf[!,:sX4] .= 0.0
+sdf[!,:sY4] .= 0.0
+# sdf[!,[:sX4, :sY4]] .= Proj4.transform(mproj,tproj,[sdf.slon sdf.slat])
+for ii = 1:nrow(sdf)
+    sdf[ii,[:sX4, :sY4]] = proj([sdf.slon[ii] sdf.slat[ii]])
+end
+println("Projected station list:")
 show(sdf)
 println()
 
+# project event coordinates
+qdf[!,:qX4] .= 0.0
+qdf[!,:qY4] .= 0.0
+# sdf[!,[:sX4, :sY4]] .= Proj4.transform(mproj,tproj,[sdf.slon sdf.slat])
+for ii = 1:nrow(qdf)
+    qdf[ii,[:qX4, :qY4]] = proj([qdf.qlon[ii] qdf.qlat[ii]])
+end
+println("Projected event list:")
+show(qdf)
+println()
+
 ### Read Xcor Data
-println("\nReading xcor data")
-@time xdf = read_xcordata(inpD,qdf[!,[:qix,:qid,:qlat,:qlon]],sdf[!,[:sta,:slat,:slon]])
+println("\nReading xcor data") # in projected coordinates
+@time xdf = read_xcordata_proj(inpD,qdf[!,[:qix,:qid,:qX4,:qY4]],sdf[!,[:sta,:sX4,:sY4]])
 show(xdf)
 println()
+
+#### TODO LIST ####
+# - check results
+# - allow for other projections
+# - plot / check results
+# - research best projections to use
+#exit()
 
 ###
 
@@ -376,6 +414,8 @@ const nq = Int32(nrow(qdf))
 revids = qdf[:,:qid]
 rlats = qdf[:,:qlat]
 rlons = qdf[:,:qlon]
+rXs = qdf[:,:qX4]
+rYs = qdf[:,:qY4]
 rdeps = qdf[:,:qdep] .+ datum # datum-adjust
 rorgs = zeros(Float64,nq) # origin time adjust
 rcids = Vector{Int32}(1:nq) # initialize each event into one cluster
@@ -391,7 +431,7 @@ if inpD["nboot"] > 0
 end
 
 # base xcor dataframe to sample from
-xdf00 = select(xdf,[:qix1,:qix2,:slat,:slon,:tdif,:iphase,:igood])
+xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:iphase,:igood])
 xdf00[!,:gxcor] = ifelse.(xdf.igood.>0,xdf.rxcor,Float32(0.0)) # xcor with bad values zeroed
 #show(xdf00)
 
@@ -431,23 +471,34 @@ println("\n\n\nStarting relocation estimates.")
     end
 
     # compile event pair arrays
-    bpdf = combine(groupby(rxdf[!,Not([:slat,:slon,:iphase,:tdif])],[:qix1,:qix2]),
+    bpdf = combine(groupby(rxdf[!,Not([:sX4,:sY4,:iphase,:tdif])],[:qix1,:qix2]),
         :gxcor=>sum=>:rfactor,:ixx=>first=>:ix1,:ixx=>last=>:ix2,:igood=>sum=>:ngood)
     
     # sort pairs (note, resampled pairs may not have ngoodmin tdifs)
-    bpdf = bpdf[bpdf.ngood.>=inpD["ngoodmin"]-2,[:qix1,:qix2,:rfactor,:ix1,:ix2]] # for robustness
-    show(bpdf)
+    if ib > 0
+        bpdf = bpdf[bpdf.ngood.>=inpD["ngoodmin"]-2,[:qix1,:qix2,:rfactor,:ix1,:ix2]] # for robustness
+    else
+        select!(bpdf,[:qix1,:qix2,:rfactor,:ix1,:ix2])
+    end
+    sort!(bpdf,:rfactor,rev=true) # so best pairs first
+    #show(bpdf)
     end # ends elapsed time for setup
     println("\nDone, elapsed time = $wc2")
     
     # run clustering
-    brlats, brlons, brdeps, brorgs, brcids, bnb = clustertree(
+    brXs, brYs, brdeps, brorgs, brcids, bnb = clustertree(
         bpdf.qix1, bpdf.qix2, bpdf.ix1, bpdf.ix2, 
-        rxdf.tdif, rxdf.slat, rxdf.slon, rxdf.iphase,
-        qdf.qlat, qdf.qlon, qdf.qdep .+ datum,
-        ttTABs, nit, boxwid, degkm, irelonorm,
+        rxdf.tdif, rxdf.sX4, rxdf.sY4, rxdf.iphase,
+        qdf.qX4, qdf.qY4, qdf.qdep .+ datum,
+        ttTABs, nit, boxwid, irelonorm,
         inpD["rmsmax"],rmedmax,distmax,distmax2,
         hshiftmax,vshiftmax,torgdifmax,nupdate,maxlink)
+
+    # inverse projection back to map coordinates
+    brlons, brlats = zeros(nq), zeros(nq)
+    for ii = 1:nq
+        brlons[ii], brlats[ii] = iproj([brXs[ii] brYs[ii]])
+    end
     
     # save output
     if ib > 0
@@ -457,6 +508,8 @@ println("\n\n\nStarting relocation estimates.")
         borgM[:,ib] .= brorgs
         bnbM[:,ib] .= bnb
     else
+        rXs .= brXs
+        rYs .= brYs
         rlats .= brlats
         rlons .= brlons
         rdeps .= brdeps
@@ -529,7 +582,7 @@ ntree100 = sum(tnbranch.>=100)
 println("\nFinalizing relocated dataset:")
 rdf = DataFrame("enum"=>qdf.qix,"evid"=>revids,
     "rlat"=>rlats,"rlon"=>rlons,"rdep"=>rdeps,"rtim"=>rorgs,
-    "rcid"=>rcids,"rnb"=>rnbranch)
+    "rcid"=>rcids,"rnb"=>rnbranch,"rX"=>rXs,"rY"=>rYs)
 
 # compute relocated
 nreloc = sum(rdf.rnb .> 1)
@@ -540,32 +593,34 @@ rdf[!,:rot] = qdf[!,:qotime] .+ Nanosecond.(round.(rorgs*1.0e9))
 show(rdf)
 println()
 
+# projected versions
+
 
 ### Compute Misfits - w/ otime adjustment ###
 
 println("\nComputing misfits...")
 
 # select columns
-resdf = select(xdf,[:qid1,:qid2,:tdif,:iphase,:slat,:slon,:rxcor,:sdist])
+resdf = select(xdf,[:qid1,:qid2,:tdif,:iphase,:sX4,:sY4,:rxcor,:sdist])
 
 # merge with event data, renaming columns to specify 1/2
-resdf = innerjoin(resdf,rdf[!,[:enum,:evid,:rlat,:rlon,:rdep,:rtim]],on=:qid1=>:evid)
-DataFrames.rename!(resdf,:enum=>:qnum1,:rlat=>:qlat1,:rlon=>:qlon1,:rdep=>:qdep1,:rtim=>:qtim1)
-resdf = innerjoin(resdf,rdf[!,[:enum,:evid,:rlat,:rlon,:rdep,:rtim]],on=:qid2=>:evid)
-DataFrames.rename!(resdf,:enum=>:qnum2,:rlat=>:qlat2,:rlon=>:qlon2,:rdep=>:qdep2,:rtim=>:qtim2)
+resdf = innerjoin(resdf,rdf[!,[:enum,:evid,:rX,:rY,:rdep,:rtim]],on=:qid1=>:evid)
+DataFrames.rename!(resdf,:enum=>:qnum1,:rX=>:qX1,:rY=>:qY1,:rdep=>:qZ1,:rtim=>:qtim1)
+resdf = innerjoin(resdf,rdf[!,[:enum,:evid,:rX,:rY,:rdep,:rtim]],on=:qid2=>:evid)
+DataFrames.rename!(resdf,:enum=>:qnum2,:rX=>:qX2,:rY=>:qY2,:rdep=>:qZ2,:rtim=>:qtim2)
 
 # here, compute misfits for relocated event pairs and good differential times (for consistency with f90 codes)
 resdf = resdf[(rcids[resdf.qnum1] .== rcids[resdf.qnum2]) .& ( # only event pairs in same cluster
     resdf[!,:sdist].<=inpD["delmax"]).&(resdf[!,:rxcor].>=inpD["rmin"]),:]
 
 # compute individual source station distances
-sdist1 = map_distance(resdf[!,:qlat1],resdf[!,:qlon1],resdf[!,:slat],resdf[!,:slon])
-sdist2 = map_distance(resdf[!,:qlat2],resdf[!,:qlon2],resdf[!,:slat],resdf[!,:slon])
+sdist1 = xydist(resdf[!,:qX1],resdf[!,:qY1],resdf[!,:sX4],resdf[!,:sY4])
+sdist2 = xydist(resdf[!,:qX2],resdf[!,:qY2],resdf[!,:sX4],resdf[!,:sY4])
 
 # compute predicted travel times
 resdf[!,:pdif] = ifelse.(resdf[!,:iphase].==1,
-    pTT.(sdist2,resdf[!,:qdep2]).-pTT.(sdist1,resdf[!,:qdep1]),
-    sTT.(sdist2,resdf[!,:qdep2]).-sTT.(sdist1,resdf[!,:qdep1])) .+ 
+    pTT.(sdist2,resdf[!,:qZ2]).-pTT.(sdist1,resdf[!,:qZ1]),
+    sTT.(sdist2,resdf[!,:qZ2]).-sTT.(sdist1,resdf[!,:qZ1])) .+ 
     (resdf[!,:qtim2].-resdf[!,:qtim1]) # otime adjustment (add here or subtract from tdif)
 
 # P vs S
