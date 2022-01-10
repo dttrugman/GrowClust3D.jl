@@ -273,6 +273,8 @@ println()
 const pTT = smtrace_table(inpD["fout_pTT"],shallowmode,Float64)
 const sTT = smtrace_table(inpD["fout_sTT"],shallowmode,Float64)
 const ttTABs = [pTT,sTT]
+rm(inpD["fout_pTT"]) # clean up
+rm(inpD["fout_sTT"]) # clean up
 
 # new - find valid distances
 println("\nChecking maximum allowable distance for ray tracing.")
