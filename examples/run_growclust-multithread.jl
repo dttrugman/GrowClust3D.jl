@@ -21,7 +21,7 @@ const hshiftmax = 2.0        # maximum permitted horizontal cluster shifts (km)
 const vshiftmax = 2.0        # maximum permitted vertical cluster shifts (km)
 const rmedmax = 0.05         # maximum median absolute tdif residual to join clusters
 const maxlink = 10           # use 10 best event pairs to relocate (optimize later...)
-const nupdate = 1000         # update progress every nupdate pairs - NEW
+const nupdate = 10000        # update progress every nupdate pairs - NEW
    
 # ------- Relative Relocation subroutine parameters -------------
 const boxwid = 3. # initial "shrinking-box" width (km)
@@ -447,16 +447,23 @@ end
 
 
 #### loop over each bootstrapping iteration
-println("\n\n\nStarting relocation estimates.")
-@time for ib in 0:inpD["nboot"]    
+println("\n\n\nStarting relocation estimates, nthread=",Threads.nthreads())
+println("[Progress tracked on Thread 1 only.]")
+@time Threads.@threads for ib in 0:inpD["nboot"]     
+    
+    # log thread id
+    @printf("Thread %d: starting bootstrap iteration: %d/%d\n",
+            Threads.threadid(),ib,inpD["nboot"])
     
     # timer for this thread
     wc = @elapsed begin
     
     # bootstrapping: resample data before run
+    if Threads.threadid()==1
+        println("Thread 1: Initializing xcorr data and event pairs...")
+    end
     Random.seed!(iseed + ib) # different for each run
     wc2 = @elapsed begin
-    println("Initializing xcorr data and event pairs. Bootstrap iteration: $ib")
     if ib > 0 # sample with replacement from original xcorr array
         isamp = sort(sample(ixc,nxc,replace=true)) # sorted to keep evpairs together
         rxdf = xdf00[isamp,:]
@@ -484,7 +491,9 @@ println("\n\n\nStarting relocation estimates.")
     sort!(bpdf,:rfactor,rev=true) # so best pairs first
     #show(bpdf)
     end # ends elapsed time for setup
-    println("\nDone, elapsed time = $wc2")
+    if Threads.threadid()==1
+        println("Thread 1: Done with initialization, elapsed time = $wc2")
+    end
     
     # run clustering
     brXs, brYs, brdeps, brorgs, brcids, bnb = clustertree(
@@ -521,7 +530,9 @@ println("\n\n\nStarting relocation estimates.")
         
     # completion
     end # ends the wall clock
-    @printf("Completed bootstrap iteration: %d/%d, wall clock = %.1fs.\n",ib,inpD["nboot"],wc)
+    @printf("Thread %d: completed bootstrap iteration: %d/%d, wall clock = %.1fs.\n",
+        Threads.threadid(),ib,inpD["nboot"],wc)
+    println()
 
 end
 

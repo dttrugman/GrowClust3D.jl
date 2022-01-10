@@ -5,12 +5,12 @@ module GrowClust3D
 using Printf, Random, Dates, DataFrames
 using SharedArrays, Distributed
 using Proj4: Transformation
-using StatsBase: mean, median, mad, minimum, maximum
+using StatsBase: mean, median, mad, minimum, maximum, percentile, sample, std
 using Interpolations: LinearInterpolation, Flat, Line, Reflect
 using DelimitedFiles: readdlm
 
 # exports from these packages
-export mean, median, mad, minimum, maximum
+export mean, median, mad, minimum, maximum, percentile, sample, std
 
 # exports from seismotrace
 include("seismotrace.jl")

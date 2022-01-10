@@ -9,7 +9,7 @@
 * evlist_fmt (1 = phase, 2 = GrowClust, 3 = HypoInverse)
 1
 * fin_evlist (event list file name)
-data/in/evlist.txt
+data/evlist.txt
 *
 *******************************************
 ************   Station list   *************
@@ -17,7 +17,7 @@ data/in/evlist.txt
 * stlist_fmt (1 = station name)
 1
 * fin_stlist (station list file name)
-data/in/stlist.txt
+data/stlist.txt
 *
 *******************************************
 *************   XCOR data   ***************
@@ -25,17 +25,17 @@ data/in/stlist.txt
 * xcordat_fmt (1 = text), tdif_fmt (21 = tt2-tt1, 12 = tt1-tt2)
 1  12
 * fin_xcordat
-data/in/xcordata.txt
+data/xcordata.txt
 *
 *******************************************
 *** Velocity Model / Travel Time Tables ***
 *******************************************
 * fin_vzmdl (input vz model file)
-data/in/vzmodel.txt
+data/vzmodel.txt
 * fout_pTT (output travel time table, P phase)
-data/tt/tt.pg
+data/tt.pg
 * fout_sTT (output travel time table, S phase)
-data/tt/tt.sg
+data/tt.sg
 *
 ******************************************
 ***** Travel Time Table Parameters  ******
@@ -61,12 +61,12 @@ data/tt/tt.sg
 * nboot  nbranch_min
    0         2
 * fout_cat (relocated catalog)
-data/out/out.serial.growclust_cat
+NONE
 * fout_clust (relocated cluster file)
-data/out/out.serial.growclust_clust
+NONE
 * fout_log (program log)
-data/out/out.serial.growclust_log
+NONE
 * fout_boot (bootstrap distribution)
-data/out/out.serial.growclust_boot
+NONE
 ******************************************
 ******************************************

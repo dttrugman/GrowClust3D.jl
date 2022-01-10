@@ -8,6 +8,8 @@ using DataFrames
 using Random
 using Dates
 using Proj4: Transformation, inv
+using Distributed
+using SharedArrays
 
 # GrowClust3D
 using GrowClust3D
@@ -21,7 +23,7 @@ const hshiftmax = 2.0        # maximum permitted horizontal cluster shifts (km)
 const vshiftmax = 2.0        # maximum permitted vertical cluster shifts (km)
 const rmedmax = 0.05         # maximum median absolute tdif residual to join clusters
 const maxlink = 10           # use 10 best event pairs to relocate (optimize later...)
-const nupdate = 1000         # update progress every nupdate pairs - NEW
+const nupdate = 10000        # update progress every nupdate pairs - NEW
    
 # ------- Relative Relocation subroutine parameters -------------
 const boxwid = 3. # initial "shrinking-box" width (km)
@@ -410,45 +412,69 @@ println("Done.")
 
 ############# Main Clustering Loop: Including Bootstrapping ##############
 
-# define event-based output arrays
-const nq = Int32(nrow(qdf))
-revids = qdf[:,:qid]
-rlats = qdf[:,:qlat]
-rlons = qdf[:,:qlon]
-rXs = qdf[:,:qX4]
-rYs = qdf[:,:qY4]
-rdeps = qdf[:,:qdep] .+ datum # datum-adjust
-rorgs = zeros(Float64,nq) # origin time adjust
-rcids = Vector{Int32}(1:nq) # initialize each event into one cluster
-npair = -1
+# loading packages @everywhere
+@everywhere using Printf
+@everywhere using DataFrames
+@everywhere using Random
+@everywhere using Distributed
+@everywhere using SharedArrays
+@everywhere using GrowClust3D
+
+# shared parameters - is there a better way?
+@everywhere nboot = $(inpD["nboot"])
+@everywhere nit = $nit
+@everywhere boxwid = $boxwid
+@everywhere degkm = $degkm
+@everywhere irelonorm = $irelonorm
+@everywhere rmsmax = $(inpD["rmsmax"])
+@everywhere ngoodmin = $(inpD["ngoodmin"])
+@everywhere rmedmax = $rmedmax
+@everywhere distmax = $distmax
+@everywhere distmax2 = $distmax2
+@everywhere hshiftmax = $hshiftmax
+@everywhere vshiftmax= $vshiftmax
+@everywhere torgdifmax = $torgdifmax
+@everywhere nupdate = $nupdate
+@everywhere maxlink = $maxlink
+@everywhere ttTABs = $ttTABs
+@everywhere nq = $(nrow(qdf))
+@everywhere iseed = $iseed
+
+# initial locations
+@everywhere qX = $(qdf.qlat)
+@everywhere qY = $(qdf.qlon)
+@everywhere qZ = $(qdf.qdep .+ datum)
 
 # Setup bootstrapping matrices
-if inpD["nboot"] > 0
-    blatM = repeat(qdf.qlat,1,inpD["nboot"])
-    blonM = repeat(qdf.qlon,1,inpD["nboot"])
-    bdepM = repeat(qdf.qdep,1,inpD["nboot"]) .+ datum
-    borgM = zeros(Float64,(nq,inpD["nboot"]))
-    bnbM = repeat(Vector{Int32}(1:nq),1,inpD["nboot"])
-end
+bXM = SharedArray(repeat(qX,1,nboot+1))
+bYM = SharedArray(repeat(qY,1,nboot+1))
+bdepM = SharedArray(repeat(qZ,1,nboot+1))
+borgM = SharedArray(zeros(Float64,(nq,nboot+1)))
+bnbM = SharedArray(zeros(Int64,(nq,nboot+1)))
+bcidM = SharedArray(repeat(Vector{Int32}(1:nq),1,nboot+1))
+bnpairM = SharedArray(zeros(Int64,nboot+1))
 
 # base xcor dataframe to sample from
 xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:iphase,:igood])
 xdf00[!,:gxcor] = ifelse.(xdf.igood.>0,xdf.rxcor,Float32(0.0)) # xcor with bad values zeroed
-#show(xdf00)
+@everywhere xdf00 = $(xdf00)
 
 # sampling vector
 if nrow(xdf00)<typemax(Int32)
-    const nxc = Int32(nrow(xdf00))
-    const ixc = Vector{Int32}(1:nxc)
+    @everywhere nxc = $(Int32(nrow(xdf00)))
+    @everywhere ixc = Vector{Int32}(1:nxc)
 else
-    const nxc = nrow(xdf00)
-    const ixc = Vector{Int64}(1:nxc)
+    @everywhere nxc = $(nrow(xdf00))
+    @everywhere ixc = Vector{Int64}(1:nxc)
 end
 
 
 #### loop over each bootstrapping iteration
-println("\n\n\nStarting relocation estimates.")
-@time for ib in 0:inpD["nboot"]    
+println("\n\n\nStarting relocation estimates, workers=",workers())
+@time @sync @distributed for ib in 0:nboot # need to call @sync to ensure all workers finish    
+    
+    # log thread id
+    @printf("Starting bootstrap iteration: %d/%d\n",ib,nboot)
     
     # timer for this thread
     wc = @elapsed begin
@@ -456,7 +482,7 @@ println("\n\n\nStarting relocation estimates.")
     # bootstrapping: resample data before run
     Random.seed!(iseed + ib) # different for each run
     wc2 = @elapsed begin
-    println("Initializing xcorr data and event pairs. Bootstrap iteration: $ib")
+    println("Initializing xcorr data and event pairs.")
     if ib > 0 # sample with replacement from original xcorr array
         isamp = sort(sample(ixc,nxc,replace=true)) # sorted to keep evpairs together
         rxdf = xdf00[isamp,:]
@@ -477,53 +503,68 @@ println("\n\n\nStarting relocation estimates.")
     
     # sort pairs (note, resampled pairs may not have ngoodmin tdifs)
     if ib > 0
-        bpdf = bpdf[bpdf.ngood.>=inpD["ngoodmin"]-2,[:qix1,:qix2,:rfactor,:ix1,:ix2]] # for robustness
+        bpdf = bpdf[bpdf.ngood.>=ngoodmin-2,[:qix1,:qix2,:rfactor,:ix1,:ix2]] # for robustness
     else
         select!(bpdf,[:qix1,:qix2,:rfactor,:ix1,:ix2])
     end
     sort!(bpdf,:rfactor,rev=true) # so best pairs first
     #show(bpdf)
     end # ends elapsed time for setup
-    println("\nDone, elapsed time = $wc2")
+    println("Done with initialization, elapsed time = $wc2")
     
     # run clustering
-    brXs, brYs, brdeps, brorgs, brcids, bnb = clustertree(
+    brXs, brYs, brdeps, brorgs, brcids, bnbs = clustertree(
         bpdf.qix1, bpdf.qix2, bpdf.ix1, bpdf.ix2, 
         rxdf.tdif, rxdf.sX4, rxdf.sY4, rxdf.iphase,
         qdf.qX4, qdf.qY4, qdf.qdep .+ datum,
         ttTABs, nit, boxwid, irelonorm,
-        inpD["rmsmax"],rmedmax,distmax,distmax2,
+        rmsmax,rmedmax,distmax,distmax2,
         hshiftmax,vshiftmax,torgdifmax,nupdate,maxlink)
 
-    # inverse projection back to map coordinates
-    brlons, brlats = zeros(nq), zeros(nq)
-    for ii = 1:nq
-        brlons[ii], brlats[ii] = iproj([brXs[ii] brYs[ii]])
-    end
-    
-    # save output
+    # save output to Shared Array
     if ib > 0
-        blatM[:,ib] .= brlats
-        blonM[:,ib] .= brlons
+        bXM[:,ib] .= brXs
+        bYM[:,ib] .= brYs
         bdepM[:,ib] .= brdeps
         borgM[:,ib] .= brorgs
-        bnbM[:,ib] .= bnb
+        bnbM[:,ib] .= bnbs
+        bcidM[:,ib] .= brcids
+        bnpairM[ib] = nrow(bpdf)
     else
-        rXs .= brXs
-        rYs .= brYs
-        rlats .= brlats
-        rlons .= brlons
-        rdeps .= brdeps
-        rorgs .= brorgs
-        rcids .= brcids
-        global npair = nrow(bpdf)
+        bXM[:,nboot+1] .= brXs
+        bYM[:,nboot+1] .= brYs
+        bdepM[:,nboot+1] .= brdeps
+        borgM[:,nboot+1] .= brorgs
+        bnbM[:,nboot+1] .= bnbs
+        bcidM[:,nboot+1] .= brcids
+        bnpairM[nboot+1] = nrow(bpdf)
     end
         
     # completion
     end # ends the wall clock
-    @printf("Completed bootstrap iteration: %d/%d, wall clock = %.1fs.\n",ib,inpD["nboot"],wc)
+    @printf("Completed bootstrap iteration: %d/%d, wall clock = %.1fs.\n",ib,nboot,wc)
 
 end
+
+### Invert Map Projection
+blatM = zeros(Float64,nq,nboot+1)
+blonM = zeros(Float64,nq,nboot+1)
+for ii=1:nq
+    for jj=1:nboot+1
+        blonM[ii,jj], blatM[ii,jj] = iproj([bXM[ii,jj] bYM[ii,jj]])
+    end
+end
+
+### Extract event-based output arrays
+revids = qdf[:,:qid]
+rXs = bXM[:,nboot+1]
+rYs = bYM[:,nboot+1]
+rlats = blatM[:,nboot+1]
+rlons = blonM[:,nboot+1]
+rdeps = bdepM[:,nboot+1]
+rorgs = borgM[:,nboot+1]
+rcids = bcidM[:,nboot+1]
+npair = bnpairM[nboot+1]
 
 ################################################################
 

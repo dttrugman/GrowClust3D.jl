@@ -198,10 +198,10 @@ end
 ### CHECK_AUXPARAMS validates global parameters
 #
 #  > Inputs: global run parameters: hshiftmax, vshiftmax, rmedmax,
-#       boxwid, nit, irelonorm, vzmodel_type
+#       boxwid, nit, irelonorm, vzmodel_type, mapproj
 #  < Returns: params_ok, a boolean check
 function check_auxparams(hshiftmax, vshiftmax, rmedmax,
-    boxwid, nit, irelonorm, vzmodel_type)
+    boxwid, nit, irelonorm, vzmodel_type, mapproj)
 
 # assume params ok unless problem is found
 println("Checking auxiliary run parameters")
@@ -240,6 +240,13 @@ end
 if ((vzmodel_type < 1) | (vzmodel_type > 3))  
     println("parameter error: vzmodel_type")
     println(vzmodel_type)
+    params_ok = false
+end
+
+# check map projections
+if !(mapproj in ["aeqd", "lcc", "merc", "tmerc"])
+    println("parameter error: mapproj (not implemented)")
+    println(mapproj)
     params_ok = false
 end
 
