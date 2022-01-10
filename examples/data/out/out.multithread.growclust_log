@@ -1,0 +1,53 @@
+************************ Input files ************************
+     control file:   example.multithread.inp
+       event list:   data/in/evlist.txt
+     station list:   data/in/stlist.txt
+     xcordat file:   data/in/xcordata.txt
+     velocity mdl:   data/in/vzmodel.txt
+
+********************** Travel Time Tables *********************
+          P-phase:   data/tt/tt.pg
+          S-phase:   data/tt/tt.sg
+
+************************ Output files *************************
+     catalog file:   data/out/out.multithread.growclust_cat
+     cluster file:   data/out/out.multithread.growclust_clust
+         log file:   data/out/out.multithread.growclust_log
+   bootstrap file:   data/out/out.multithread.growclust_boot
+
+****************** GROWCLUST Run Parameters *******************
+  (min rxcor value for evpair similarity coeff.): rmin =   0.60
+  (max sta. dist for evpair similarity coeff.): delmax =   80.0
+           (max rms residual to join clusters): rmsmax =   0.20
+        (num. bootstrap uncertainty iterations): nboot =    100
+
+****************** Auxiliary Run Parameters *******************
+                     max catalog dist to join clusters:    5.00
+                   max relocated dist to join clusters:    3.00
+               max permitted horizontal cluster shifts:    2.00
+                 max permitted vertical cluster shifts:    2.00
+         max median absolute residual to join clusters:    0.05
+***************************************************************
+
+==================================================================
+==================================================================
+
+********************  GROWCLUST Run Summary  *********************
+                             Number of catalog events:        1616
+                           Number of relocated events:         734
+                          Number of input event pairs:       50214
+                           Number of event pairs used:       48534
+                Number of xcor data used (total, P+S):      560253
+                   Number of xcor data used (P-phase):      315700
+             RMS differential time residual (P-phase):      0.0708
+   Mean (signed) differential time residual (P-phase):     -0.0004
+                   Number of xcor data used (S-phase):      244553
+             RMS differential time residual (S-phase):      0.0245
+   Mean (signed) differential time residual (S-phase):     -0.0004
+
+                Number of clusters with >=   2 events:          7
+                Number of clusters with >=   5 events:          1
+                Number of clusters with >=  10 events:          1
+                Number of clusters with >=  20 events:          1
+                Number of clusters with >=  50 events:          1
+                Number of clusters with >= 100 events:          1

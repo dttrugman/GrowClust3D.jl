@@ -1,12 +1,12 @@
 ****  Example GrowClust Control File  *****
 ******   Spanish Springs Sequence   *******
-********  Daniel Trugman, 2021   **********
+********  Daniel Trugman, 2022   **********
 *******************************************
 *
 *******************************************
 *************  Event list  ****************
 *******************************************
-* evlist_fmt (0 = evlist, 1 = phase, 2 = GrowClust, 3 = HypoInverse)
+* evlist_fmt (1 = phase, 2 = GrowClust, 3 = HypoInverse)
 1
 * fin_evlist (event list file name)
 data/in/evlist.txt
@@ -14,7 +14,7 @@ data/in/evlist.txt
 *******************************************
 ************   Station list   *************
 *******************************************
-* stlist_fmt (0 = SEED channel, 1 = station name)
+* stlist_fmt (1 = station name)
 1
 * fin_stlist (station list file name)
 data/in/stlist.txt
@@ -22,7 +22,7 @@ data/in/stlist.txt
 *******************************************
 *************   XCOR data   ***************
 *******************************************
-* xcordat_fmt (0 = binary, 1 = text), tdif_fmt (21 = tt2-tt1, 12 = tt1-tt2)
+* xcordat_fmt (1 = text), tdif_fmt (21 = tt2-tt1, 12 = tt1-tt2)
 1  12
 * fin_xcordat
 data/in/xcordata.txt

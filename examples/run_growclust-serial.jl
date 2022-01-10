@@ -21,7 +21,7 @@ const hshiftmax = 2.0        # maximum permitted horizontal cluster shifts (km)
 const vshiftmax = 2.0        # maximum permitted vertical cluster shifts (km)
 const rmedmax = 0.05         # maximum median absolute tdif residual to join clusters
 const maxlink = 10           # use 10 best event pairs to relocate (optimize later...)
-const nupdate = 100         # update progress every nupdate pairs - NEW
+const nupdate = 1000         # update progress every nupdate pairs - NEW
    
 # ------- Relative Relocation subroutine parameters -------------
 const boxwid = 3. # initial "shrinking-box" width (km)
@@ -45,9 +45,8 @@ const shallowmode = "flat" # option for how to treat shallow seismicity
 
 # ------- Geodetic parameters -------------
 const degkm = 111.1949266 # for simple degree / km conversion
-const mapproj = "tmerc" # for Proj4
-const mapdatum = "WGS84" # for Proj4
-
+const mapproj = "tmerc" # projection for Proj4 ("aeqd", "lcc", "merc", "tmerc")
+const rellipse = "WGS84" # reference ellipse / datum for Proj4 (e.g. "WGS84")
 
 ### Read Input File
 
@@ -97,7 +96,7 @@ end
 
 ### Check Auxiliary Parameters
 params_ok = check_auxparams(hshiftmax, vshiftmax, rmedmax,
-        boxwid, nit, irelonorm, vzmodel_type)
+        boxwid, nit, irelonorm, vzmodel_type, mapproj)
 if input_ok
     println("Auxiliary parameters are ok!")
 else
@@ -151,16 +150,26 @@ print("\nReading station list")
 # ### Map Projection
 
 # # setup projection
-# mproj = Proj4.Projection("+proj=longlat +datum=$mapdatum +no_defs")
-# tproj = Proj4.Projection("+proj=tmerc +datum=$mapdatum +lat_0=$qlat0 +lon_0=$qlon0 +units=km")
-proj = Transformation("+proj=longlat +datum=$mapdatum +no_defs",
-    "+proj=$mapproj +datum=$mapdatum +lat_0=$qlat0 +lon_0=$qlon0 +units=km")
-iproj = inv(proj) # inverse
+if mapproj in ["aeqd", "tmerc"]
+    proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
+        "+proj=$mapproj +datum=$rellipse +lat_0=$qlat0 +lon_0=$qlon0 +units=km")
+elseif mapproj == "merc"
+    proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
+        "+proj=$mapproj +datum=$rellipse +lat_ts=$qlat0 +lon_0=$qlon0 +units=km")
+elseif mapproj == "lcc"
+    qlat1 = percentile(qdf.qlat,1.0)
+    qlat2 = percentile(qdf.qlat,99.0)
+    proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
+    "+proj=$mapproj +datum=$rellipse +lat_0=$qlat0 +lon_0=$qlon0 +lat_1= $qlat1 +lat_2=$qlat2 +units=km")
+else
+    println("ERROR, map projection not defined! ", mapproj)
+    exit()
+end
+iproj = inv(proj) # inverse transformation
 
 # project station coordinates
 sdf[!,:sX4] .= 0.0
 sdf[!,:sY4] .= 0.0
-# sdf[!,[:sX4, :sY4]] .= Proj4.transform(mproj,tproj,[sdf.slon sdf.slat])
 for ii = 1:nrow(sdf)
     sdf[ii,[:sX4, :sY4]] = proj([sdf.slon[ii] sdf.slat[ii]])
 end
@@ -171,7 +180,6 @@ println()
 # project event coordinates
 qdf[!,:qX4] .= 0.0
 qdf[!,:qY4] .= 0.0
-# sdf[!,[:sX4, :sY4]] .= Proj4.transform(mproj,tproj,[sdf.slon sdf.slat])
 for ii = 1:nrow(qdf)
     qdf[ii,[:qX4, :qY4]] = proj([qdf.qlon[ii] qdf.qlat[ii]])
 end
@@ -184,13 +192,6 @@ println("\nReading xcor data") # in projected coordinates
 @time xdf = read_xcordata_proj(inpD,qdf[!,[:qix,:qid,:qX4,:qY4]],sdf[!,[:sta,:sX4,:sY4]])
 show(xdf)
 println()
-
-#### TODO LIST ####
-# - check results
-# - allow for other projections
-# - plot / check results
-# - research best projections to use
-#exit()
 
 ###
 
@@ -520,6 +521,7 @@ println("\n\n\nStarting relocation estimates.")
         
     # completion
     end # ends the wall clock
+    @printf("Completed bootstrap iteration: %d/%d, wall clock = %.1fs.\n",ib,inpD["nboot"],wc)
 
 end
 
@@ -592,8 +594,6 @@ println("Relocated: ",nreloc)
 rdf[!,:rot] = qdf[!,:qotime] .+ Nanosecond.(round.(rorgs*1.0e9))
 show(rdf)
 println()
-
-# projected versions
 
 
 ### Compute Misfits - w/ otime adjustment ###
