@@ -45,8 +45,10 @@ const shallowmode = "flat" # option for how to treat shallow seismicity
 
 # ------- Geodetic parameters -------------
 const degkm = 111.1949266 # for simple degree / km conversion
+const erad = 6371.0 # average earth radius in km, WGS-84
 const mapproj = "tmerc" # projection for Proj4 ("aeqd", "lcc", "merc", "tmerc")
-const rellipse = "WGS84" # reference ellipse / datum for Proj4 (e.g. "WGS84")
+const rellipse = "WGS84" # reference ellipse for Proj4 (e.g. "WGS84")
+const datum = 0.0 # elevation corresponding to z = 0 in velocity model
 
 ### Read Input File
 
@@ -136,6 +138,12 @@ println("Median event location: $qlon0 $qlat0")
 ### Read Stations
 print("\nReading station list")
 @time sdf = read_stlist(inpD["fin_stlist"],inpD["stlist_fmt"])
+min_selev = minimum(sdf.selev)
+max_selev = maximum(sdf.selev)
+mean_selev = mean(sdf.selev)
+@printf("station elevation (min,mean,max): %.1fkm %.1fkm %.1fkm\n",
+    min_selev, mean_selev, max_selev)
+@printf("assumed surface datum: %.1fkm\n",datum)
 
 # ### Map Projection
 
@@ -163,7 +171,7 @@ sdf[!,:sY4] .= 0.0
 for ii = 1:nrow(sdf)
     sdf[ii,[:sX4, :sY4]] = proj([sdf.slon[ii] sdf.slat[ii]])
 end
-println("Projected station list:")
+println("\nProjected station list:")
 show(sdf)
 println()
 
@@ -173,7 +181,7 @@ qdf[!,:qY4] .= 0.0
 for ii = 1:nrow(qdf)
     qdf[ii,[:qX4, :qY4]] = proj([qdf.qlon[ii] qdf.qlat[ii]])
 end
-println("Projected event list:")
+println("\nProjected event list:")
 show(qdf)
 println()
 
@@ -209,18 +217,16 @@ if inpD["rayparam_min"] < 0.0
 end
 
 ### Interpolate VZ Model to finer grid
-println("Interpolation (positive depths only):") # interpolate
+println("\nInterpolation:") # interpolate
 z_s, alpha_s, beta_s = interp_vzmodel(
-    z_s0, alpha_s0, beta_s0; itp_dz=inpD["itp_dz"])
+    z_s0, alpha_s0, beta_s0; itp_dz=inpD["itp_dz"], ztop=-max_selev)
 for ii in 1:length(z_s) # print out
     @printf("%5.2fkm: %6.4f %6.4f\n",z_s[ii],alpha_s[ii],beta_s[ii])
 end
 
 ### Run Earth-flattening Codes
-erad = max(6371., z_s[end] + 0.1) # flatten
 z, alpha = eflatten(z_s, alpha_s, erad=erad)
 z, beta = eflatten(z_s, beta_s, erad=erad)
-
 
 ### Define slowness arrays
 npts = length(z_s)
@@ -239,6 +245,8 @@ sdeltab = collect(range(inpD["tt_del0"],inpD["tt_del1"],step=inpD["tt_ddel"]))
 phases = [1,2]
 plongcuts = [inpD["plongcutP"],inpD["plongcutS"]]
 ttoutfiles = [inpD["fout_pTT"], inpD["fout_sTT"]]
+zstart = 0.0 # stations at z = 0
+println("Station depth: $zstart")
 total_time = @elapsed for iphase in phases
 
     # Print results
@@ -248,20 +256,29 @@ total_time = @elapsed for iphase in phases
     # Ray tracing: compute offset and travel time to different depths
     println("Tracing rays...")
     ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W = trace_rays(
-        iphase,z_s,z,slow,qdeptab,inpD["itp_dz"])
+        iphase,z_s,z,slow,qdeptab,inpD["itp_dz"],zstart)
     println("Done.")
     
+    # Compute slowness at station elevation
+    isurf = findfirst(x->x>=zstart,z_s)
+    if (isurf==1)|(z_s[isurf]==zstart)
+        usurf=slow[isurf,iphase] # use slowness directly
+    else                         # simple linear interpolation   
+        usurf=slow[isurf-1,iphase] + (slow[isurf,iphase]-slow[isurf-1,iphase])*(
+            zstart-z_s[isurf-1])/(z_s[isurf]-z_s[isurf-1])
+    end
+
     # Make table of first arrivals and take of angles
     println("Compiling travel time table of first arrivals...")
     TT, AA = first_arrivals(vzmodel_type, plongcuts[iphase], qdeptab, sdeltab, 
-                        slow[1,iphase], ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
+                        usurf, zstart, ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
     println("Done.")
     println(sum(isnan.(TT)))
     
     # Write output files
     println("Writing output files...")
     write_table(ttoutfiles[iphase],inpD["fin_vzmdl"],iphase,vzmodel_type,
-                        TT,qdeptab, sdeltab,ptab)
+                        TT,qdeptab, sdeltab,ptab,zstart)
     println("Done.")
 end
 @printf("\nElapsed seconds: %.2f",total_time)
@@ -273,8 +290,8 @@ println()
 const pTT = smtrace_table(inpD["fout_pTT"],shallowmode,Float64)
 const sTT = smtrace_table(inpD["fout_sTT"],shallowmode,Float64)
 const ttTABs = [pTT,sTT]
-rm(inpD["fout_pTT"]) # clean up
-rm(inpD["fout_sTT"]) # clean up
+rm(inpD["fout_pTT"]) # clean up test file
+rm(inpD["fout_sTT"]) # clean up test file
 
 # new - find valid distances
 println("\nChecking maximum allowable distance for ray tracing.")
@@ -323,8 +340,6 @@ for ii in 1:npts
             test_ttP[ii],test_ttS[ii])
     end
 end
-#exit()
-
 
 #### Validate Event Depths and Travel Time Tables; Datum Setup
 
@@ -354,19 +369,6 @@ if (inpD["tt_dep0"] < z_s0[1]) # for robustness, check this as well
     println("ERROR: min table depth < min vzmodel depth")
     exit()
 end
-
-# station elevations
-if inpD["stlist_fmt"] == 2
-    min_selev = minimum(sdf.selev)
-    max_selev = maximum(sdf.selev)
-    mean_selev = mean(sdf.selev)
-    @printf("station elevation (min,mean,max): %.1fm %.1fm %.1fm\n",
-        min_selev,mean_selev,max_selev)
-    const datum = mean_selev/1000.0
-else
-    const datum = 0.0
-end
-@printf("assumed surface datum: %.1fkm\n",datum)
 
 # check xcor data
 println("\nValidating xcor data...")

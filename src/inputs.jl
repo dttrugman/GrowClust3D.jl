@@ -326,8 +326,10 @@ function read_stlist(stfile,stfmt)
         end
     end
     
-    # add in default elevation
-    if !("selev" in names(df))
+    # convert elevations to km
+    if "selev" in names(df)
+        df[!,:selev] ./= 1000.0
+    else # set to zero
         df[!,:selev] .= 0.0
     end
     
