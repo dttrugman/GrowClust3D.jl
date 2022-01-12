@@ -73,81 +73,59 @@ end
 #   The input velocity model is meant to be interpolated, so 
 #   layer interfaces need are explicitly defined with two depth points
 #   with top and bottom layer velocities.
-#   [NEW VERSION]
 #
 #  > Inputs
 #     z_s0:      Depth points in coarse model
 #     alpha_s0:  P-wave speed in coarse model
 #     beta_s0:   S-wave speed in coarse model
-#     itp_dz: Depth interval for interpolation
+#     itp_dz:    Depth interval for interpolation
+#     ztop:      Top depth of the output model (can be )
 #
 #  < Returns
 #     z_s:       Depth points in finer interpolated model
 #     alpha_s:   P-wave speed in finer interpolated model
 #     beta_s:    S-wave speed in finer interpolated model
 
-function interp_vzmodel(z_s0, alpha_s0, beta_s0; itp_dz=1.0)
+function interp_vzmodel(z_s0, alpha_s0, beta_s0; itp_dz=1.0, ztop=-3.0)
     
-    # store interpolated values here
-    z_s, alpha_s, beta_s = [], [], []
-    
-    # range of points to insert (NEW, makes sure we hit the integers)
-    zmin, zmax = ceil(z_s0[1]), floor(z_s0[end])
-    while zmin > z_s0[1]+itp_dz
-        zmin-=itp_dz
-    end
-    while zmax < z_s0[end]-itp_dz
-        zmax+=itp_dz
-    end
-    z_in = range(zmin, zmax, step=itp_dz)
-    
-    # loop over coarse model points
-    nz0 = length(z_s0)
-    for ii = 1:nz0
+    # define evenly spaced grid spanning velocity model
+    zmin = min(floor(ztop),floor(z_s0[1]),-3.0) # down to -3.0 for a pad
+    zmax = ceil(z_s0[end])
+    zitp = range(zmin, zmax, step=itp_dz)
 
-        # skip negative depths
-        if z_s0[ii] < 0.0
-            continue
-        elseif (z_s0[ii]==0.0) # only keep final zero depth point
-            if (z_s0[ii+1]==0.0); continue; end
-        end
-       
-        # add current depth point
-        z, a, b = z_s0[ii], alpha_s0[ii], beta_s0[ii]
-        push!(z_s,z)
-        push!(alpha_s,a)
-        push!(beta_s,b)
-        
-        # check for end of model
-        if ii >= nz0
-            break
-        end
-        
-        # check dz to next point
-        dz0 = z_s0[ii+1] - z_s0[ii]
-        da0 = alpha_s0[ii+1] - alpha_s0[ii]
-        db0 = beta_s0[ii+1] - beta_s0[ii]
-        
-        # insert between these points      
-        for zi in z_in
-            if (zi > z_s0[ii])&(zi<z_s0[ii+1])
-                dz = zi - z
-                push!(z_s,zi)
-                push!(alpha_s,a+dz/dz0*da0)
-                push!(beta_s,b+dz/dz0*db0)
-            end
-        end
+    # output z points: points from grid while preserving known interfaces
+    z_s = sort(vcat(setdiff(zitp,z_s0), z_s0))
+    ns = length(z_s)
+    alpha_s, beta_s = zeros(Float64,ns), zeros(Float64,ns)
 
-    end # end loop over coarse model
-    
-    # dummy interface at the bottom
-    push!(z_s, z_s[end])
-    push!(alpha_s, alpha_s[end])
-    push!(beta_s, beta_s[end])
+    # interpolate to output points while preserving interfaces
+    ii=1 
+    ns0 = length(z_s0)
+    for jj = 1:length(z_s)
+        if z_s[jj] < z_s0[1] # top extrapolate
+            alpha_s[jj]=alpha_s0[1]
+            beta_s[jj]=beta_s0[1]
+        elseif (ii>ns0) # bottom extrapolate
+            alpha_s[jj]=alpha_s0[end]
+            beta_s[jj]=beta_s0[end]
+        elseif z_s[jj]==z_s0[ii] # preserve interface
+            alpha_s[jj]=alpha_s0[ii]
+            beta_s[jj]=beta_s0[ii]
+            ii+=1
+        else # linear interpolation for new grid
+            zfrac = (z_s[jj] - z_s0[ii-1])/(z_s0[ii]-z_s0[ii-1])
+            alpha_s[jj] = alpha_s0[ii-1] + zfrac*(alpha_s0[ii]-alpha_s0[ii-1])
+            beta_s[jj] = beta_s0[ii-1] + zfrac*(beta_s0[ii]-beta_s0[ii-1])
+        end
+    end
+
+    # # dummy interface at the bottom???
+    # push!(z_s, z_s[end])
+    # push!(alpha_s, alpha_s[end])
+    # push!(beta_s, beta_s[end])
     
     # return
-    return Array{Float64}(z_s), Array{Float64}(alpha_s), 
-        Array{Float64}(beta_s) 
+    return z_s, alpha_s,beta_s 
 end
 
 #######################################################################
@@ -327,9 +305,11 @@ end
 #  > Inputs
 #     iw:       Phase index in slowness array (0=P, 1=S)
 #     z_s:      Depth points in interpolated velocity model
-#     z:        Depth points in flatted model
+#     z:        Depth points in flattened model
 #     slow:     Array of slownesses at each depth point
 #     qdeptab:  Array of source depths in output table
+#     itp_dz:   Interpolation depth spacing
+#     zstart:   Starting depth for "surface" (i.e negative of selev)
 #
 #  < Returns
 #     ptab:     Array of ray parameters used in ray tracing
@@ -339,8 +319,25 @@ end
 #     del2W:   Surface-to-surface offset for each ray
 #     tt2W:    Surface-to-surface travel time for each ray
 #
-function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz)
+function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz,zstart)
     
+    # validate zstart
+    if zstart > qdeptab[1]
+        println("Error in trace_rays: source depth above station")
+        println("$zstart > ",qdeptab[1])
+        exit()
+    elseif zstart < z_s[1]
+        println("Error in trace_rays: station above vzmodel start")
+        println("$zstart < ",z_s[1])
+        exit()
+    else
+        
+    end
+
+    # preferred interpolation method for earth-flattening
+    imth = 3
+    erad = 6371.0
+
     # array sizes
     npts = length(z_s)                 # number of depth points in velocity models
     zmax = 9999.0                      # maximum depth point, used only for robustness
@@ -358,7 +355,7 @@ function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz)
     tt2W = fill(NaN64,nray)            # surface-to-surface travel time T for each p
     
     # surface correction
-    ifix = qdeptab.==0.0
+    ifix = qdeptab.==zstart
     qdepxcor[:,ifix].=0.0
     qdeptcor[:,ifix].=0.0
     qdepucor[:,ifix].=slow[1,iw]
@@ -369,15 +366,33 @@ function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz)
         # start at 0,0
         x, t = 0., 0.
 
-        # preferred interpolation method for earth-flattening
-        imth = 3
+        # find starting depth point
+        istart = findfirst(x->x>=zstart,z_s)
+
+        # in case this is not an interpolated depth point
+        if z_s[istart] > zstart
+            zflat = -erad * log((erad-zstart)/erad) # flattened
+            zfrac = (zflat-z[istart-1])/(z[istart]-z[istart-1])
+            slow1 = slow[istart-1] + zfrac*(slow[istart,iw]-slow[istart-1,iw])
+            slow2 = slow[istart,iw]
+            h = z[istart]-zflat
+            dx, dt, irtr = layer_trace(p,h,slow1,slow2,imth)
+            x+=dx
+            t+=dt
+            if ((irtr==0) | (irtr==2))
+                del2W[ip]=2.0*x
+                tt2W[ip]=2.0*t
+                continue
+            end
+        end
 
         # loop over layers
-        for ii in 1:(npts-1)
+        for ii = istart:(npts-1)
 
             # check for z>zmax (for robustness)
             if z_s[ii] >= zmax
-                throw(Exception("Error: z_s[ii] > zmax"))
+                println("Error: z_s[ii] > zmax")
+                exit()
             end
 
             # layer thickness
@@ -425,6 +440,7 @@ end
 #     qdeptab:  Array of source depths in output table
 #     sdeltab:  Array of station distances in output table
 #     usurf:    Slowness at the surface of the velocity model
+#     zstart:   Station depth for start of ray tracing (i.e negative of selev)
 #     ptab:     Array of ray parameters used in ray tracing
 #     qdepxcor: Matrix (nray x ndep) of offsets to each source depth, for each ray
 #     qdeptcor: Matrix (nray x ndep) of travel times to each soruce depth, for each ray
@@ -436,14 +452,13 @@ end
 #     tt:       Travel time table (ndel,ndep)
 #     aa:       Takeoff angle table (ndel, dep) in degrees from vertical (0 = straight down)
 #
-function first_arrivals(itype, plongcut, qdeptab, sdeltab, usurf,
+function first_arrivals(itype, plongcut, qdeptab, sdeltab, usurf, zstart,
                    ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
     
     # earth / geographic parameters
     erad = 6371.0
     ecircum = 2.0*pi*erad
     kmdeg=ecircum/360.0
-    degrad=180.0/pi
     
     # array sizes
     ndep, ndel, nray = length(qdeptab), length(sdeltab), length(ptab)
@@ -465,7 +480,7 @@ function first_arrivals(itype, plongcut, qdeptab, sdeltab, usurf,
         xold = 0.0 # current x value
 
         # upgoing rays from source
-        if (qdeptab[idep] > 0.0) # skip for sources at zero depth
+        if (qdeptab[idep] > zstart) # skip for sources at zero depth
             for ip in 1:nray
                 if isnan(qdepxcor[ip,idep]); break; end
                 if isnan(del2W[ip]); break; end 
@@ -556,8 +571,8 @@ function first_arrivals(itype, plongcut, qdeptab, sdeltab, usurf,
     end
                 
     
-    # fix edge case: surface
-    if abs(qdeptab[1])<0.01
+    # fix edge case: horizontal ray
+    if abs(qdeptab[1]-zstart)<0.01
         surface_tt = usurf*sdeltab
         if itype == 2
             surface_tt *= kmdeg
@@ -597,10 +612,11 @@ end
 #     qdeptab:  Array of source depths in output table
 #     sdeltab:  Array of station distances in output table
 #     ptab:     Array of ray parameters used in ray tracing
+#     zstart:   Station depth where rays started (i.e negative of selev)
 #
 #  < Returns: NONE
 
-function write_table(outfile,vmodel,iw,itype,TT,qdeptab,sdeltab,ptab)
+function write_table(outfile,vmodel,iw,itype,TT,qdeptab,sdeltab,ptab,zstart)
     
     # array sizes
     ndel, ndep = size(TT)
@@ -611,8 +627,8 @@ function write_table(outfile,vmodel,iw,itype,TT,qdeptab,sdeltab,ptab)
     f = open(outfile, "w")
     
     # write header
-    @printf(f,"From deptable, file= %20s iw =%2d pmin=%8.5f pmax=%8.5f np=%6d\n",
-        vmodel,iw,ptab[1],ptab[end],length(ptab))
+    @printf(f,"From deptable, file= %20s iw =%2d pmin=%8.5f pmax=%8.5f np=%6d selev=%.3f\n",
+        vmodel,iw,ptab[1],ptab[end],length(ptab),-zstart)
 
     # write table size
     @printf(f,"%5d%5d\n",ndel,ndep)
@@ -666,7 +682,6 @@ function smtrace_table(fname,shallowmode="flat",dtype=Float64)
     
     # read all lines in file
     lines = readlines(fname)
-    nlines = length(lines)
     
     # travel time table setup (line 2, skips header)
     sline = split(lines[2])
