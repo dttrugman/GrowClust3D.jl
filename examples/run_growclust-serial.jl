@@ -43,6 +43,9 @@ const shallowmode = "flat" # option for how to treat shallow seismicity
                        # flat treats negative depths as zero depth
                        # reflect treats negative depths as equivalent to -depth; ok for true elevations
 
+const ttabsrc = "trace" # 1D ray trace ("trace"), 1D/3D nllgrid "nllgrid"
+const ttabmode = "bystation" # travel time table mode ("bystation" or "byphase")
+
 # ------- Geodetic parameters -------------
 const degkm = 111.1949266 # for simple degree / km conversion
 const erad = 6371.0 # average earth radius in km, WGS-84
@@ -98,7 +101,7 @@ end
 
 ### Check Auxiliary Parameters
 params_ok = check_auxparams(hshiftmax, vshiftmax, rmedmax,
-        boxwid, nit, irelonorm, vzmodel_type, mapproj)
+        boxwid, nit, irelonorm, vzmodel_type, ttabsrc, mapproj)
 if input_ok
     println("Auxiliary parameters are ok!")
 else
@@ -201,213 +204,247 @@ println("\nReading xcor data") # in projected coordinates
 show(xdf)
 println()
 
-###
-
-### Read in velocity model
-println("\nReading velocity model..")
-# read in
-z_s0, alpha_s0, beta_s0 = read_vzmodel(
-    inpD["fin_vzmdl"],vpvs=inpD["vpvs_factor"])
-for ii in 1:length(z_s0) # print out
-    @printf("%5.2fkm: %6.4f %6.4f\n",z_s0[ii],alpha_s0[ii],beta_s0[ii])
+### Gather Unique Station/Phase combos
+usta = unique(xdf[!,"sta"])
+nstaU = length(usta)
+println("$nstaU unique stations used:\n",usta,"\n")
+xdf[!,:itab] .= Int16(0)
+if ttabmode == "bystation"
+    staIDX = Dict(zip(usta,1:nstaU))
+    for ii = 1:nrow(xdf) # table index: first nstaU are for P-waves, next are for S-waves
+        xdf[ii,:itab] = staIDX[xdf[ii,:sta]] + nstaU*(xdf[ii,:iphase]-1)
+    end
+    ntab = 2
+else # one per phase
+    xdf[!,:itab] .= convert.(Int16,xdf[!,:iphase]) # convert to Int16 for compatibility
+    ntab = 2
 end
+println("Updated with table index:")
+show(xdf[!,[:qix1,:qix2,:sta,:tdif,:rxcor,:iphase,:itab]])
 
-### Find Moho depth in model, print results
-println("\nMoho depths:")
-imoho = find_moho(z_s0,alpha_s0)
-@printf("%.2f %.3f %.3f\n",
-    z_s0[imoho], alpha_s0[imoho], beta_s0[imoho])
-println("Moho slownesses:")
-@printf("%.4f %.4f\n",1.0/alpha_s0[imoho], 1.0/beta_s0[imoho])
+################
 
-# update minimum ray parameter
-if inpD["rayparam_min"] < 0.0
-    inpD["plongcutP"] = 1.0/alpha_s0[imoho]
-    inpD["plongcutS"] = 1.0/beta_s0[imoho]
-end
+###### Ray-Tracing Section ##########
+if ttabsrc == "trace"
 
-### Interpolate VZ Model to finer grid
-println("\nInterpolation:") # interpolate
-z_s, alpha_s, beta_s = interp_vzmodel(
-    z_s0, alpha_s0, beta_s0; itp_dz=inpD["itp_dz"], ztop=-max_selev)
-for ii in 1:length(z_s) # print out
-    @printf("%5.2fkm: %6.4f %6.4f\n",z_s[ii],alpha_s[ii],beta_s[ii])
-end
-
-### Run Earth-flattening Codes
-z, alpha = eflatten(z_s, alpha_s, erad=erad)
-z, beta = eflatten(z_s, beta_s, erad=erad)
-
-### Define slowness arrays
-npts = length(z_s)
-slow = zeros(Float64,npts,2)
-slow[:,1] .= 1.0./alpha
-slow[:,2] .= ifelse.(beta.>0.0,1.0./beta,1.0./alpha)
-
-### Main Ray Tracing Loop
-println("\nRay tracing to assemble travel time tables:")
-
-# define grids
-qdeptab = collect(range(inpD["tt_dep0"],inpD["tt_dep1"],step=inpD["tt_ddep"]))
-sdeltab = collect(range(inpD["tt_del0"],inpD["tt_del1"],step=inpD["tt_ddel"]))
-
-# loop over phases
-phases = [1,2]
-plongcuts = [inpD["plongcutP"],inpD["plongcutS"]]
-ttoutfiles = [inpD["fout_pTT"], inpD["fout_sTT"]]
-zstart = 0.0 # stations at z = 0
-println("Station depth: $zstart")
-total_time = @elapsed for iphase in phases
-
-    # Print results
-    print("Working on Phase #")
-    println(iphase)
-    
-    # Ray tracing: compute offset and travel time to different depths
-    println("Tracing rays...")
-    ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W = trace_rays(
-        iphase,z_s,z,slow,qdeptab,inpD["itp_dz"],zstart)
-    println("Done.")
-    
-    # Compute slowness at station elevation
-    isurf = findfirst(x->x>=zstart,z_s)
-    if (isurf==1)|(z_s[isurf]==zstart)
-        usurf=slow[isurf,iphase] # use slowness directly
-    else                         # simple linear interpolation   
-        usurf=slow[isurf-1,iphase] + (slow[isurf,iphase]-slow[isurf-1,iphase])*(
-            zstart-z_s[isurf-1])/(z_s[isurf]-z_s[isurf-1])
+    ### Read in velocity model
+    println("\nReading velocity model..")
+    # read in
+    z_s0, alpha_s0, beta_s0 = read_vzmodel(
+        inpD["fin_vzmdl"],vpvs=inpD["vpvs_factor"])
+    for ii in 1:length(z_s0) # print out
+        @printf("%5.2fkm: %6.4f %6.4f\n",z_s0[ii],alpha_s0[ii],beta_s0[ii])
     end
 
-    # Make table of first arrivals and take of angles
-    println("Compiling travel time table of first arrivals...")
-    TT, AA = first_arrivals(vzmodel_type, plongcuts[iphase], qdeptab, sdeltab, 
-                        usurf, zstart, ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
-    println("Done.")
-    println(sum(isnan.(TT)))
-    
-    # Write output files
-    println("Writing output files...")
-    write_table(ttoutfiles[iphase],inpD["fin_vzmdl"],iphase,vzmodel_type,
-                        TT,qdeptab, sdeltab,ptab,zstart)
-    println("Done.")
-end
-@printf("\nElapsed seconds: %.2f",total_time)
-println()
+    ### Find Moho depth in model, print results
+    println("\nMoho depths:")
+    imoho = find_moho(z_s0,alpha_s0)
+    @printf("%.2f %.3f %.3f\n",
+        z_s0[imoho], alpha_s0[imoho], beta_s0[imoho])
+    println("Moho slownesses:")
+    @printf("%.4f %.4f\n",1.0/alpha_s0[imoho], 1.0/beta_s0[imoho])
 
-### Test Interpolant objects
-
-# instantiate interpolants
-const pTT = smtrace_table(inpD["fout_pTT"],shallowmode,Float64)
-const sTT = smtrace_table(inpD["fout_sTT"],shallowmode,Float64)
-const ttTABs = [pTT,sTT]
-
-# new - find valid distances
-println("\nChecking maximum allowable distance for ray tracing.")
-maxdistTT = inpD["tt_del1"]
-test_dists = collect(range(inpD["tt_del0"],inpD["tt_del1"],step=inpD["tt_ddel"]))
-dep1 = max(inpD["tt_dep0"],floor(minimum(qdf[!,"qdep"])))
-dep2 = min(inpD["tt_dep1"],ceil(maximum(qdf[!,"qdep"])))
-for test_depth in range(dep1,dep2,step=1.0)
-    ttP = pTT(test_dists,test_depth)
-    ttS = sTT(test_dists,test_depth)
-    inan = (isnan.(ttP)) .| (isnan.(ttS))
-    if sum(inan)>0
-        global maxdistTT=min(maxdistTT,test_dists[inan][1]-1.0)
+    # update minimum ray parameter
+    if inpD["rayparam_min"] < 0.0
+        inpD["plongcutP"] = 1.0/alpha_s0[imoho]
+        inpD["plongcutS"] = 1.0/beta_s0[imoho]
     end
-end
-println("Given travel time tables, maximum allowable distance: ",maxdistTT)
 
-# define test distances, depth
-println("Testing smtrace interpolation (P and S waves):")
-if vzmodel_type == 1
-    test_dists = collect(range(0.0,60.0,step=5.0))
-    npts = length(test_dists)
-    test_depth = 10.0
-else
-    test_dists = collect(range(0.0,100.0,step=5.0))
-    npts = length(test_dists)
-    test_depth = 33.0
-end
-    
-# calculate travel times
-test_ttP = pTT(test_dists, test_depth)
-test_ttS = sTT(test_dists, test_depth)
+    ### Interpolate VZ Model to finer grid
+    println("\nInterpolation:") # interpolate
+    z_s, alpha_s, beta_s = interp_vzmodel(
+        z_s0, alpha_s0, beta_s0; itp_dz=inpD["itp_dz"], ztop=-max_selev)
+    for ii in 1:length(z_s) # print out
+        @printf("%5.2fkm: %6.4f %6.4f\n",z_s[ii],alpha_s[ii],beta_s[ii])
+    end
 
-# print results
-println(typeof(test_ttP[1]), " ", typeof(test_ttS[1]))
-for ii in 1:npts
+    ### Run Earth-flattening Codes
+    z, alpha = eflatten(z_s, alpha_s, erad=erad)
+    z, beta = eflatten(z_s, beta_s, erad=erad)
+
+    ### Define slowness arrays
+    npts = length(z_s)
+    slow = zeros(Float64,npts,2)
+    slow[:,1] .= 1.0./alpha
+    slow[:,2] .= ifelse.(beta.>0.0,1.0./beta,1.0./alpha)
+
+    ### Main Ray Tracing Loop
+    println("\nRay tracing to assemble travel time tables:")
+
+    # define grids
+    qdeptab = collect(range(inpD["tt_dep0"],inpD["tt_dep1"],step=inpD["tt_ddep"]))
+    sdeltab = collect(range(inpD["tt_del0"],inpD["tt_del1"],step=inpD["tt_ddel"]))
+
+    # loop over phases
+    phases = [1,2]
+    plongcuts = [inpD["plongcutP"],inpD["plongcutS"]]
+    ttoutfiles = [inpD["fout_pTT"], inpD["fout_sTT"]]
+    zstart = 0.0 # stations at z = 0
+    println("Station depth: $zstart")
+    total_time = @elapsed for iphase in phases
+
+        # Print results
+        print("Working on Phase #")
+        println(iphase)
+        
+        # Ray tracing: compute offset and travel time to different depths
+        println("Tracing rays...")
+        ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W = trace_rays(
+            iphase,z_s,z,slow,qdeptab,inpD["itp_dz"],zstart)
+        println("Done.")
+        
+        # Compute slowness at station elevation
+        isurf = findfirst(x->x>=zstart,z_s)
+        if (isurf==1)|(z_s[isurf]==zstart)
+            usurf=slow[isurf,iphase] # use slowness directly
+        else                         # simple linear interpolation   
+            usurf=slow[isurf-1,iphase] + (slow[isurf,iphase]-slow[isurf-1,iphase])*(
+                zstart-z_s[isurf-1])/(z_s[isurf]-z_s[isurf-1])
+        end
+
+        # Make table of first arrivals and take of angles
+        println("Compiling travel time table of first arrivals...")
+        TT, AA = first_arrivals(vzmodel_type, plongcuts[iphase], qdeptab, sdeltab, 
+                            usurf, zstart, ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
+        println("Done.")
+        println(sum(isnan.(TT)))
+        
+        # Write output files
+        println("Writing output files...")
+        write_table(ttoutfiles[iphase],inpD["fin_vzmdl"],iphase,vzmodel_type,
+                            TT,qdeptab, sdeltab,ptab,zstart)
+        println("Done.")
+    end
+    @printf("\nElapsed seconds: %.2f",total_time)
+    println()
+
+    ### Test Interpolant objects
+
+    # instantiate interpolants
+    const pTT = smtrace_table(inpD["fout_pTT"],shallowmode,Float64)
+    const sTT = smtrace_table(inpD["fout_sTT"],shallowmode,Float64)
+
+    # assemble tables
+    println("\nAssembling final tables...")
+    const ttTABs = [ifelse(ii<=ntab/2,pTT,sTT) for ii = 1:ntab]
+    println("Done.")
+
+    # find valid distances
+    println("\nChecking maximum allowable distance for ray tracing.")
+    maxdistTT = inpD["tt_del1"]
+    test_dists = collect(range(inpD["tt_del0"],inpD["tt_del1"],step=inpD["tt_ddel"]))
+    dep1 = max(inpD["tt_dep0"],floor(minimum(qdf[!,"qdep"])))
+    dep2 = min(inpD["tt_dep1"],ceil(maximum(qdf[!,"qdep"])))
+    for test_depth in range(dep1,dep2,step=1.0)
+        ttP = pTT(test_dists,test_depth)
+        ttS = sTT(test_dists,test_depth)
+        inan = (isnan.(ttP)) .| (isnan.(ttS))
+        if sum(inan)>0
+            global maxdistTT=min(maxdistTT,test_dists[inan][1]-1.0)
+        end
+    end
+    println("Given travel time tables, maximum allowable distance: ",maxdistTT)
+
+    # define test distances, depth
+    println("Testing smtrace interpolation (P and S waves):")
     if vzmodel_type == 1
-        @printf("Distance: %4.0fkm, Depth: %3.0fkm",
-            test_dists[ii],test_depth)
-        @printf(" --> P and S travel times: %5.2fs, %5.2fs\n",
-            test_ttP[ii],test_ttS[ii])
+        test_dists = collect(range(0.0,60.0,step=5.0))
+        npts = length(test_dists)
+        test_depth = 10.0
     else
-        @printf("Distance: %4.0fdeg, Depth: %3.0fkm",
-            test_dists[ii],test_depth)
-        @printf(" --> P and S travel times: %5.3fmin, %5.3fmin\n",
-            test_ttP[ii],test_ttS[ii])
+        test_dists = collect(range(0.0,100.0,step=5.0))
+        npts = length(test_dists)
+        test_depth = 33.0
     end
-end
+        
+    # calculate travel times
+    test_ttP = pTT(test_dists, test_depth)
+    test_ttS = sTT(test_dists, test_depth)
 
-#### Validate Event Depths and Travel Time Tables; Datum Setup
+    # print results
+    println(typeof(test_ttP[1]), " ", typeof(test_ttS[1]))
+    for ii in 1:npts
+        if vzmodel_type == 1
+            @printf("Distance: %4.0fkm, Depth: %3.0fkm",
+                test_dists[ii],test_depth)
+            @printf(" --> P and S travel times: %5.2fs, %5.2fs\n",
+                test_ttP[ii],test_ttS[ii])
+        else
+            @printf("Distance: %4.0fdeg, Depth: %3.0fkm",
+                test_dists[ii],test_depth)
+            @printf(" --> P and S travel times: %5.3fmin, %5.3fmin\n",
+                test_ttP[ii],test_ttS[ii])
+        end
+    end
 
-println("\nChecking event depths")
+    #### Validate Event Depths and Travel Time Tables; Datum Setup
 
-# print event depths
-const min_qdep = minimum(qdf.qdep)
-const max_qdep = maximum(qdf.qdep)
-@printf("min and max event depth: %.3fkm %.3fkm\n",min_qdep,max_qdep)
+    println("\nChecking event depths")
 
-# print table depths
-@printf("min and max table depth: %.3fkm %.3fkm\n",inpD["tt_dep0"],inpD["tt_dep1"])
+    # print event depths
+    const min_qdep = minimum(qdf.qdep)
+    const max_qdep = maximum(qdf.qdep)
+    @printf("min and max event depth: %.3fkm %.3fkm\n",min_qdep,max_qdep)
 
-# implement warrnings and checks
-if (min_qdep < inpD["tt_dep0"])
-    println("WARNING: min event depth < min table depth")
-end
-if (min_qdep < z_s0[1])
-    println("WARNING: min event depth < min vzmodel depth")
-    #exit() # allow this, but warn user (should be ok if depth is near 0)
-end
-if (max_qdep > inpD["tt_dep1"]) # note tt_dep1 is >= vzmax
-    println("ERROR: max event depth > max table / velocity model depth")
-    exit()
-end
-if (inpD["tt_dep0"] < z_s0[1]) # for robustness, check this as well
-    println("ERROR: min table depth < min vzmodel depth")
-    exit()
-end
+    # print table depths
+    @printf("min and max table depth: %.3fkm %.3fkm\n",inpD["tt_dep0"],inpD["tt_dep1"])
 
-# check xcor data
-println("\nValidating xcor data...")
-nbad = sum(abs.(xdf.tdif).>tdifmax)
-if nbad > 0
-    println("Error: bad input differential times, some larger than tdifmax=$tdifmax")
-    println("Fix input file or adjust tdifmax parameter.")
-    ibad = abs.(xdf.tdif).>tdifmax
-    show(xdf[ibad,:])
-    exit()
-end
-println("Max station distance: ",maximum(xdf.sdist))
-nbad = sum(xdf.sdist.>inpD["tt_del1"])
-if nbad > 0
-    println("Error: bad input xcor data, stations further than travel time table allows")
-    println("Fix input xcor file or adjust travel time table parameter at top of script.")
-    ibad = xdf.sdist.>inpD["tt_del1"]
-    show(xdf[ibad,:])
-    exit()
-elseif maxdistTT < inpD["tt_del1"]
-    nbad = sum(xdf.sdist.>maxdistTT)
+    # implement warrnings and checks
+    if (min_qdep < inpD["tt_dep0"])
+        println("WARNING: min event depth < min table depth")
+    end
+    if (min_qdep < z_s0[1])
+        println("WARNING: min event depth < min vzmodel depth")
+        #exit() # allow this, but warn user (should be ok if depth is near 0)
+    end
+    if (max_qdep > inpD["tt_dep1"]) # note tt_dep1 is >= vzmax
+        println("ERROR: max event depth > max table / velocity model depth")
+        exit()
+    end
+    if (inpD["tt_dep0"] < z_s0[1]) # for robustness, check this as well
+        println("ERROR: min table depth < min vzmodel depth")
+        exit()
+    end
+
+    # check xcor data
+    println("\nValidating xcor data...")
+    nbad = sum(abs.(xdf.tdif).>tdifmax)
     if nbad > 0
-        println("Error: bad input xcor data, stations further than allowed by ray tracing.")
-        println("Given present configuration, rays cannot reach beyond a distance of $maxdistTT.")
-        println("This can be fixed by adjusting velocity model or allowing non-direct (refracted) arrivals.")
-        ibad = xdf.sdist.>maxdistTT
+        println("Error: bad input differential times, some larger than tdifmax=$tdifmax")
+        println("Fix input file or adjust tdifmax parameter.")
+        ibad = abs.(xdf.tdif).>tdifmax
         show(xdf[ibad,:])
         exit()
-    end 
+    end
+    println("Max station distance: ",maximum(xdf.sdist))
+    nbad = sum(xdf.sdist.>inpD["tt_del1"])
+    if nbad > 0
+        println("Error: bad input xcor data, stations further than travel time table allows")
+        println("Fix input xcor file or adjust travel time table parameter at top of script.")
+        ibad = xdf.sdist.>inpD["tt_del1"]
+        show(xdf[ibad,:])
+        exit()
+    elseif maxdistTT < inpD["tt_del1"]
+        nbad = sum(xdf.sdist.>maxdistTT)
+        if nbad > 0
+            println("Error: bad input xcor data, stations further than allowed by ray tracing.")
+            println("Given present configuration, rays cannot reach beyond a distance of $maxdistTT.")
+            println("This can be fixed by adjusting velocity model or allowing non-direct (refracted) arrivals.")
+            ibad = xdf.sdist.>maxdistTT
+            show(xdf[ibad,:])
+            exit()
+        end 
+    end
+    println("Done.")
+
+###### End of Ray Tracing Section ########
+#elseif ttsrc == "nllgrid"
+
+else # Placeholder for now
+    println("Travel time calculation mode not yet implemented: $ttsrc")
+    println("Ending program.")
+    exit()
 end
-println("Done.")
 
 
 ############# Main Clustering Loop: Including Bootstrapping ##############
@@ -434,7 +471,7 @@ if inpD["nboot"] > 0
 end
 
 # base xcor dataframe to sample from
-xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:iphase,:igood])
+xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:itab,:igood])
 xdf00[!,:gxcor] = ifelse.(xdf.igood.>0,xdf.rxcor,Float32(0.0)) # xcor with bad values zeroed
 #show(xdf00)
 
@@ -474,7 +511,7 @@ println("\n\n\nStarting relocation estimates.")
     end
 
     # compile event pair arrays
-    bpdf = combine(groupby(rxdf[!,Not([:sX4,:sY4,:iphase,:tdif])],[:qix1,:qix2]),
+    bpdf = combine(groupby(rxdf[!,Not([:sX4,:sY4,:itab,:tdif])],[:qix1,:qix2]),
         :gxcor=>sum=>:rfactor,:ixx=>first=>:ix1,:ixx=>last=>:ix2,:igood=>sum=>:ngood)
     
     # sort pairs (note, resampled pairs may not have ngoodmin tdifs)
@@ -491,7 +528,7 @@ println("\n\n\nStarting relocation estimates.")
     # run clustering
     brXs, brYs, brdeps, brorgs, brcids, bnb = clustertree(
         bpdf.qix1, bpdf.qix2, bpdf.ix1, bpdf.ix2, 
-        rxdf.tdif, rxdf.sX4, rxdf.sY4, rxdf.iphase,
+        rxdf.tdif, rxdf.sX4, rxdf.sY4, rxdf.itab,
         qdf.qX4, qdf.qY4, qdf.qdep .+ datum,
         ttTABs, nit, boxwid, irelonorm,
         inpD["rmsmax"],rmedmax,distmax,distmax2,
@@ -603,7 +640,7 @@ println()
 println("\nComputing misfits...")
 
 # select columns
-resdf = select(xdf,[:qid1,:qid2,:tdif,:iphase,:sX4,:sY4,:rxcor,:sdist])
+resdf = select(xdf,[:qid1,:qid2,:tdif,:itab,:sX4,:sY4,:rxcor,:sdist])
 
 # merge with event data, renaming columns to specify 1/2
 resdf = innerjoin(resdf,rdf[!,[:enum,:evid,:rX,:rY,:rdep,:rtim]],on=:qid1=>:evid)
@@ -620,13 +657,15 @@ sdist1 = xydist(resdf[!,:qX1],resdf[!,:qY1],resdf[!,:sX4],resdf[!,:sY4])
 sdist2 = xydist(resdf[!,:qX2],resdf[!,:qY2],resdf[!,:sX4],resdf[!,:sY4])
 
 # compute predicted travel times
-resdf[!,:pdif] = ifelse.(resdf[!,:iphase].==1,
-    pTT.(sdist2,resdf[!,:qZ2]).-pTT.(sdist1,resdf[!,:qZ1]),
-    sTT.(sdist2,resdf[!,:qZ2]).-sTT.(sdist1,resdf[!,:qZ1])) .+ 
-    (resdf[!,:qtim2].-resdf[!,:qtim1]) # otime adjustment (add here or subtract from tdif)
+resdf[!,:pdif] .= 0.0
+for ii = 1:nrow(resdf)
+    resdf[ii,:pdif] = ttTABs[resdf[ii,:itab]](sdist2[ii],resdf[ii,:qZ2]) -
+        ttTABs[resdf[ii,:itab]](sdist1[ii],resdf[ii,:qZ1]) +
+        resdf[ii,:qtim2] - resdf[ii,:qtim1]
+end
 
 # P vs S
-ipp = (resdf[!,:iphase].==1)
+ipp = (resdf[!,:itab].<=ntab/2)
 npp = sum(ipp)
 iss = .!ipp
 nss = sum(iss)
@@ -648,7 +687,7 @@ println("Mean signed residual: $msresS")
 println("Phases used: $nss")
 
 # show
-select!(resdf,[:qnum1,:qnum2,:qid1,:qid2,:tdif,:iphase,:pdif])
+select!(resdf,[:qnum1,:qnum2,:qid1,:qid2,:tdif,:itab,:pdif])
 
 ### Compute Event-based Stats
 
