@@ -201,7 +201,7 @@ end
 #       boxwid, nit, irelonorm, vzmodel_type, mapproj
 #  < Returns: params_ok, a boolean check
 function check_auxparams(hshiftmax, vshiftmax, rmedmax,
-    boxwid, nit, irelonorm, vzmodel_type, mapproj)
+    boxwid, nit, irelonorm, vzmodel_type, ttabsrc, mapproj)
 
 # assume params ok unless problem is found
 println("Checking auxiliary run parameters")
@@ -242,6 +242,14 @@ if ((vzmodel_type < 1) | (vzmodel_type > 3))
     println(vzmodel_type)
     params_ok = false
 end
+
+# travel time calculation mode
+if !(ttabsrc in ["trace"])
+    println("parameter error: ttabsrc")
+    println(ttabsrc)
+    params_ok=false
+end
+
 
 # check map projections
 if !(mapproj in ["aeqd", "lcc", "merc", "tmerc"])

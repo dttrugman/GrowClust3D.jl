@@ -122,8 +122,8 @@ end
 # Inputs: qX0  =  reference center point xpos (km)
 #         qY0  =  reference center point ypos (km)
 #         qZ0  =  reference center point depth (km)
-#         tdif   =  array (len=npick) of dif times, t2-t1 (s)
-#         iph    =  array (len=npick) with phase index numbers (1 to 10) for tt data
+#         tdif =  array (len=npick) of dif times, t2-t1 (s)
+#         itab =  array (len=npick) with table index numbers
 #         sX   =  array (len=npick) with station latitudes
 #         sY   =  array (len=npick) with station longitudes
 #         qX1  =  array (len=npick) of events in cluster1 xpos offsets from centroid
@@ -152,7 +152,7 @@ end
 
 ##### difclust1: L1 residual norm
 function difclust1(qX0::Float64,qY0::Float64,qZ0::Float64,
-    tdif::Vector{Float64},iph::Vector{Int8},
+    tdif::Vector{Float64},itab::Vector{Int16},
     sX::Vector{Float64},sY::Vector{Float64},
     qX1::Vector{Float64},qY1::Vector{Float64},
     qZ1::Vector{Float64},qT1::Vector{Float64},
@@ -204,8 +204,8 @@ for it=1:nit
                 sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
                 sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[iph[ii]](sdist1[ii],qZ1[ii]+fZ1)
-                    tt2 = ttTABs[iph[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    tt1 = ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1)
+                    tt2 = ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2)
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -259,8 +259,8 @@ cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
 sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
 sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[iph[ii]](sdist1[ii],cZ1+qZ1[ii])
-    tt2 = ttTABs[iph[ii]](sdist2[ii],cZ2+qZ2[ii])
+    tt1 = ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii])
+    tt2 = ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii])
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -276,7 +276,7 @@ end
 
 ##### difclust2: L2 residual norm
 function difclust2(qX0::Float64,qY0::Float64,qZ0::Float64,
-    tdif::Vector{Float64},iph::Vector{Int8},
+    tdif::Vector{Float64},itab::Vector{Int16},
     sX::Vector{Float64},sY::Vector{Float64},
     qX1::Vector{Float64},qY1::Vector{Float64},
     qZ1::Vector{Float64},qT1::Vector{Float64},
@@ -328,8 +328,8 @@ for it=1:nit
                 sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
                 sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[iph[ii]](sdist1[ii],qZ1[ii]+fZ1)
-                    tt2 = ttTABs[iph[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    tt1 = ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1)
+                    tt2 = ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2)
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -383,8 +383,8 @@ cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
 sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
 sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[iph[ii]](sdist1[ii],cZ1+qZ1[ii])
-    tt2 = ttTABs[iph[ii]](sdist2[ii],cZ2+qZ2[ii])
+    tt1 = ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii])
+    tt2 = ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii])
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -400,7 +400,7 @@ end
 
 ##### difclust3: L3 / Robomean Norm
 function difclust3(qX0::Float64,qY0::Float64,qZ0::Float64,
-    tdif::Vector{Float64},iph::Vector{Int8},
+    tdif::Vector{Float64},itab::Vector{Int16},
     sX::Vector{Float64},sY::Vector{Float64},
     qX1::Vector{Float64},qY1::Vector{Float64},
     qZ1::Vector{Float64},qT1::Vector{Float64},
@@ -452,8 +452,8 @@ for it=1:nit
                 sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
                 sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[iph[ii]](sdist1[ii],qZ1[ii]+fZ1)
-                    tt2 = ttTABs[iph[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    tt1 = ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1)
+                    tt2 = ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2)
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -506,8 +506,8 @@ cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
 sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
 sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[iph[ii]](sdist1[ii],cZ1+qZ1[ii])
-    tt2 = ttTABs[iph[ii]](sdist2[ii],cZ2+qZ2[ii])
+    tt1 = ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii])
+    tt2 = ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii])
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -528,9 +528,9 @@ end
 # Inputs:
 # - pqix1, pqix2: vectors of serial event numbers for each event pair
 # - ixx1, ixx2: start and stop indices in xcorr arrays for each pair
-# - tdif, sX, sY, iphase: differential travel time, station position, phase for each xcorr data
+# - tdif, sX, sY, itab: differential travel time, station position, table index for each xcorr data
 # - qXs, qXs, qZs: initial event locations
-# - ttTABS: P and S travel time interpolation objects
+# - ttTABS: array of travel time interpolation objects
 # - nit, boxwid, degkm, irelonorm: difclust parameters
 # - rmsmax, rmedmax, distmax, distmax2, hshiftmax, vshifmax, torgdifmax: cluster merge parameters
 # - nupdate: counter for iteration update
@@ -542,7 +542,7 @@ end
 #
 # function with i32 ixx arrays
 function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int32},ixx2::Vector{Int32},
-    tdif::Vector{Float64},sX::Vector{Float64},sY::Vector{Float64},iphase::Vector{Int8},
+    tdif::Vector{Float64},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
     qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
     nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float64,rmedmax::Float64,
     distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float64,
@@ -634,7 +634,7 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     dqZ1, dqorg1 = zeros(npick),zeros(npick)
     dqX2, dqY2 = zeros(npick),zeros(npick)
     dqZ2, dqorg2 = zeros(npick),zeros(npick)
-    phase21, sX21, sY21 = zeros(Int8,npick), zeros(npick), zeros(npick)
+    tab21, sX21, sY21 = zeros(Int16,npick), zeros(npick), zeros(npick)
     tdif21 = zeros(npick)
     ix1 = 1 # start index for event pair in the arrays above
     @inbounds for jj in linx
@@ -663,7 +663,7 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
         end
         sX21[ix1:ix2] .= sX[jx1:jx2] # stays same
         sY21[ix1:ix2] .= sY[jx1:jx2] # stays same
-        phase21[ix1:ix2] .= iphase[jx1:jx2] # stays same
+        tab21[ix1:ix2] .= itab[jx1:jx2] # stays same
         ix1 = ix2 + 1 # update start index in npick array
     end
 
@@ -676,19 +676,19 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     if irelonorm == 1
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust1(
-        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
         dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     elseif irelonorm == 2
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust2(
-        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
         dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     else
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust3(
-        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
         dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     end
@@ -814,7 +814,7 @@ end
 
 ####### function with i64 ixx arrays
 function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int64},ixx2::Vector{Int64},
-    tdif::Vector{Float64},sX::Vector{Float64},sY::Vector{Float64},iphase::Vector{Int8},
+    tdif::Vector{Float64},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
     qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
     nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float64,rmedmax::Float64,
     distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float64,
@@ -906,7 +906,7 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     dqZ1, dqorg1 = zeros(npick),zeros(npick)
     dqX2, dqY2 = zeros(npick),zeros(npick)
     dqZ2, dqorg2 = zeros(npick),zeros(npick)
-    phase21, sX21, sY21 = zeros(Int8,npick), zeros(npick), zeros(npick)
+    tab21, sX21, sY21 = zeros(Int16,npick), zeros(npick), zeros(npick)
     tdif21 = zeros(npick)
     ix1 = 1 # start index for event pair in the arrays above
     @inbounds for jj in linx
@@ -935,7 +935,7 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
         end
         sX21[ix1:ix2] .= sX[jx1:jx2] # stays same
         sY21[ix1:ix2] .= sY[jx1:jx2] # stays same
-        phase21[ix1:ix2] .= iphase[jx1:jx2] # stays same
+        tab21[ix1:ix2] .= itab[jx1:jx2] # stays same
         ix1 = ix2 + 1 # update start index in npick array
     end
 
@@ -948,19 +948,19 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     if irelonorm == 1
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust1(
-        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
         dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     elseif irelonorm == 2
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust2(
-        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
         dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     else
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
         cdist, torgdif, resid, rms, rmed, resol = difclust3(
-        cX0,cY0,cZ0,tdif21,phase21, sX21, sY21,
+        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
         dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     end
