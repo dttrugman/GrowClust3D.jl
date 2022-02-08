@@ -214,7 +214,7 @@ if ttabmode == "bystation"
     for ii = 1:nrow(xdf) # table index: first nstaU are for P-waves, next are for S-waves
         xdf[ii,:itab] = staIDX[xdf[ii,:sta]] + nstaU*(xdf[ii,:iphase]-1)
     end
-    ntab = 2
+    ntab = 2*nstaU
 else # one per phase
     xdf[!,:itab] .= convert.(Int16,xdf[!,:iphase]) # convert to Int16 for compatibility
     ntab = 2
@@ -661,7 +661,7 @@ resdf[!,:pdif] .= 0.0
 for ii = 1:nrow(resdf)
     resdf[ii,:pdif] = ttTABs[resdf[ii,:itab]](sdist2[ii],resdf[ii,:qZ2]) -
         ttTABs[resdf[ii,:itab]](sdist1[ii],resdf[ii,:qZ1]) +
-        resdf[ii,:qtim2] - resdf[ii,:qtim1]
+        resdf[ii,:qtim2] - resdf[ii,:qtim1] # otime adjustment (add here or subtract from tdif)
 end
 
 # P vs S
