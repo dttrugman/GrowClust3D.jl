@@ -3,11 +3,7 @@
        event list:   data/in/evlist.txt
      station list:   data/in/stlist.txt
      xcordat file:   data/in/xcordata.txt
-     velocity mdl:   data/in/vzmodel.txt
-
-********************** Travel Time Tables *********************
-          P-phase:   data/tt/tt.pg
-          S-phase:   data/tt/tt.sg
+     velo/grd mdl:   data/in/vzmodel.txt
 
 ************************ Output files *************************
      catalog file:   data/out/out.multithread.growclust_cat
@@ -34,18 +30,18 @@
 
 ********************  GROWCLUST Run Summary  *********************
                              Number of catalog events:        1616
-                           Number of relocated events:         733
+                           Number of relocated events:         734
                           Number of input event pairs:       50214
-                           Number of event pairs used:       48524
-                Number of xcor data used (total, P+S):      560173
-                   Number of xcor data used (P-phase):      315670
+                           Number of event pairs used:       48533
+                Number of xcor data used (total, P+S):      560247
+                   Number of xcor data used (P-phase):      315701
              RMS differential time residual (P-phase):      0.0707
-   Mean (signed) differential time residual (P-phase):     -0.0003
-                   Number of xcor data used (S-phase):      244503
+   Mean (signed) differential time residual (P-phase):     -0.0004
+                   Number of xcor data used (S-phase):      244546
              RMS differential time residual (S-phase):      0.0244
-   Mean (signed) differential time residual (S-phase):     -0.0003
+   Mean (signed) differential time residual (S-phase):     -0.0004
 
-                Number of clusters with >=   2 events:          7
+                Number of clusters with >=   2 events:          6
                 Number of clusters with >=   5 events:          1
                 Number of clusters with >=  10 events:          1
                 Number of clusters with >=  20 events:          1
