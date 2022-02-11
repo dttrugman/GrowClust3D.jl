@@ -30,12 +30,12 @@ data/in/xcordata.txt
 *******************************************
 *** Velocity Model / Travel Time Tables ***
 *******************************************
-* fin_vzmdl (input vz model file)
+* ttabsrc: travel time table source ("trace" or "nllgrid")
+trace
+* fin_vzmdl (model name)
 data/in/vzmodel.txt
-* fout_pTT (output travel time table, P phase)
-data/tt/tt.pg
-* fout_sTT (output travel time table, S phase)
-data/tt/tt.sg
+* fdir_ttab (directory for travel time tables/grids or NONE)
+data/tt/
 *
 ******************************************
 ***** Travel Time Table Parameters  ******

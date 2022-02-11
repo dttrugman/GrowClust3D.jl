@@ -56,7 +56,7 @@ const rellipse = "WGS84" # reference ellipse for Proj4 (e.g. "WGS84")
 
 # read input file
 println("\nReading input file: ")#,ARGS[1])
-infile_ctl = "test.grid.inp"#ARGS[1]
+infile_ctl = "test.trace.inp"#ARGS[1]
 inpD = read_gcinp(infile_ctl)
 
 ### Update fields for ray tracing
@@ -450,12 +450,7 @@ const max_qdep = maximum(qdf.qdep)
 
 # implement warnings and checks
 if (min_qdep < inpD["tt_dep0"])
-    if inpD["ttabsrc"]=="trace" # not a great idea but could work
-        println("WARNING: min event depth < min table depth")
-    else # a no-no for nonlinloc...
-        println("ERROR: min event depth < min grid depth")
-        exit()
-    end
+    println("WARNING: min event depth < min table depth")
 end
 if (inpD["ttabsrc"]=="trace")
     if (min_qdep < z_s0[1]) # only checked for ray-trace
