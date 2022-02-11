@@ -35,11 +35,11 @@ const iseed = 0 # random number seed
 #  1: Resample each event pair independently (each pair always has the same # of picks in each resample)'
 #  2: Resample the entire data vectors at once (event pairs may have different # of picks in each resample)
         
-# ------- Velocity model parameters (added 04/2018) -------------------------
+# ------- Velocity model parameters  -------------------------
 const vzmodel_type = 1 # velocity model type: 1 = flat earth, (Z,Vp,Vs)
                  #                  or  2 = radial, (R,Vp,Vs): 
                  #                note: option 2 has not been extensively tested
-const shallowmode = "flat" # option for how to treat shallow seismicity
+const shallowmode = "flat" # option for how to treat shallow seismicity for 1D ray tracing
                        # flat treats negative depths as zero depth
                        # reflect treats negative depths as equivalent to -depth; ok for true elevations
 
@@ -51,7 +51,6 @@ const degkm = 111.1949266 # for simple degree / km conversion
 const erad = 6371.0 # average earth radius in km, WGS-84
 const mapproj = "tmerc" # projection for Proj4 ("aeqd", "lcc", "merc", "tmerc")
 const rellipse = "WGS84" # reference ellipse for Proj4 (e.g. "WGS84")
-const datum = 0.0 # elevation corresponding to z = 0 in velocity model
 
 ### Read Input File
 
@@ -63,11 +62,16 @@ inpD = read_gcinp(infile_ctl)
 # output paths
 println("Assigning output directories:")
 for fkey in collect(keys(inpD))
-    if startswith(fkey,"fout")
-        outdir = join(split(inpD[fkey],"/")[1:end-1],"/")
-        println(fkey, " => ",outdir)
-        mkpath(outdir)
+    if startswith(fkey,"fout") # output catalogs, etc
+        if inpD[fkey] != "NONE"
+            outdir = join(split(inpD[fkey],"/")[1:end-1],"/")
+            println(fkey, " => ",outdir)
+            mkpath(outdir)
+        end
     end
+end
+if (inpD["ttabsrc"] == "trace")&(inpD["fdir_ttab"]!="NONE")
+    mkpath(inpD["fdir_ttab"]) # to store output tables
 end
 
 ### Update fields
@@ -156,7 +160,7 @@ max_selev = maximum(sdf.selev)
 mean_selev = mean(sdf.selev)
 @printf("station elevation (min,mean,max): %.1fkm %.1fkm %.1fkm\n",
     min_selev, mean_selev, max_selev)
-@printf("assumed surface datum: %.1fkm\n",datum)
+sta2elev = Dict(zip(sdf.sta,sdf.selev)) # map station to elevation
 
 # ### Map Projection
 
@@ -275,59 +279,64 @@ if ttabsrc == "trace"
     qdeptab = collect(range(inpD["tt_dep0"],inpD["tt_dep1"],step=inpD["tt_ddep"]))
     sdeltab = collect(range(inpD["tt_del0"],inpD["tt_del1"],step=inpD["tt_ddel"]))
 
+    # store all tables here
+    ttLIST = [] # stations for P, then stations for S
+    phases = [1,2] # make P and S tables
+    plongcuts = [inpD["plongcutP"],inpD["plongcutS"]] # cutoffs
+
     # loop over phases
-    phases = [1,2]
-    plongcuts = [inpD["plongcutP"],inpD["plongcutS"]]
-    ttoutfiles = [inpD["fout_pTT"], inpD["fout_sTT"]]
-    zstart = 0.0 # stations at z = 0
-    println("Station depth: $zstart")
+    println("STARTING RAY TRACING:")
     total_time = @elapsed for iphase in phases
 
         # Print results
         print("Working on Phase #")
         println(iphase)
-        
-        # Ray tracing: compute offset and travel time to different depths
-        println("Tracing rays...")
-        ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W = trace_rays(
-            iphase,z_s,z,slow,qdeptab,inpD["itp_dz"],zstart)
-        println("Done.")
-        
-        # Compute slowness at station elevation
-        isurf = findfirst(x->x>=zstart,z_s)
-        if (isurf==1)|(z_s[isurf]==zstart)
-            usurf=slow[isurf,iphase] # use slowness directly
-        else                         # simple linear interpolation   
-            usurf=slow[isurf-1,iphase] + (slow[isurf,iphase]-slow[isurf-1,iphase])*(
-                zstart-z_s[isurf-1])/(z_s[isurf]-z_s[isurf-1])
-        end
 
-        # Make table of first arrivals and take of angles
-        println("Compiling travel time table of first arrivals...")
-        TT, AA = first_arrivals(vzmodel_type, plongcuts[iphase], qdeptab, sdeltab, 
-                            usurf, zstart, ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
-        println("Done.")
-        println(sum(isnan.(TT)))
+        # loop over stations
+        for sta in usta
+
+            # get station depth (negative of elevation)
+            zstart = -sta2elev[sta]
+            println("Working on station $sta: depth $zstart")
         
-        # Write output files
-        println("Writing output files...")
-        write_table(ttoutfiles[iphase],inpD["fin_vzmdl"],iphase,vzmodel_type,
-                            TT,qdeptab, sdeltab,ptab,zstart)
-        println("Done.")
+            # Ray tracing: compute offset and travel time to different depths
+            println("Tracing rays...")
+            ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W = trace_rays(
+                iphase,z_s,z,slow,qdeptab,inpD["itp_dz"],zstart)
+            println("Done.")
+            
+            # Compute slowness at station elevation
+            isurf = findfirst(x->x>=zstart,z_s)
+            if (isurf==1)|(z_s[isurf]==zstart)
+                usurf=slow[isurf,iphase] # use slowness directly
+            else                         # simple linear interpolation   
+                usurf=slow[isurf-1,iphase] + (slow[isurf,iphase]-slow[isurf-1,iphase])*(
+                    zstart-z_s[isurf-1])/(z_s[isurf]-z_s[isurf-1])
+            end
+
+            # Make table of first arrivals and take of angles
+            println("Compiling travel time table of first arrivals...")
+            TT, AA = first_arrivals(vzmodel_type, plongcuts[iphase], qdeptab, sdeltab, 
+                                usurf, zstart, ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
+            println("Done.")
+            #println(sum(isnan.(TT)))
+
+            # define interpolant object and add it to list
+            iTT = make_smtrace_table(sdeltab,qdeptab,TT,shallowmode)
+            push!(ttLIST,iTT)
+
+        end # end loop over stations
+        
     end
     @printf("\nElapsed seconds: %.2f",total_time)
     println()
 
     ### Test Interpolant objects
 
-    # instantiate interpolants
-    const pTT = smtrace_table(inpD["fout_pTT"],shallowmode,Float64)
-    const sTT = smtrace_table(inpD["fout_sTT"],shallowmode,Float64)
-
-    # assemble tables
-    println("\nAssembling final tables...")
-    const ttTABs = [ifelse(ii<=ntab/2,pTT,sTT) for ii = 1:ntab]
-    println("Done.")
+    # example travel time tables
+    const ttTABs = ttLIST
+    pTT = ttTABs[1]
+    sTT = ttTABs[nstaU+1]
 
     # find valid distances
     println("\nChecking maximum allowable distance for ray tracing.")
@@ -376,6 +385,8 @@ if ttabsrc == "trace"
                 test_ttP[ii],test_ttS[ii])
         end
     end
+
+    exit()
 
     #### Validate Event Depths and Travel Time Tables; Datum Setup
 

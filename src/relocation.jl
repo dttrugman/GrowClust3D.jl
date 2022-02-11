@@ -124,8 +124,8 @@ end
 #         qZ0  =  reference center point depth (km)
 #         tdif =  array (len=npick) of dif times, t2-t1 (s)
 #         itab =  array (len=npick) with table index numbers
-#         sX   =  array (len=npick) with station latitudes
-#         sY   =  array (len=npick) with station longitudes
+#         sX   =  array (len=npick) with station xpos
+#         sY   =  array (len=npick) with station ypos
 #         qX1  =  array (len=npick) of events in cluster1 xpos offsets from centroid
 #         qY1  =  array (len=npick) of events in cluster1 ypos offsets
 #         qZ1  =  array (len=npick) of events in cluster1 depth offsets

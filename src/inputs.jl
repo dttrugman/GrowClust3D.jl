@@ -4,11 +4,14 @@
 #  < Returns: inpD, a dictionary with parsed control parameters
 function read_gcinp(inpfile)
     ### open file
+    counter = 0
     inpD = open(inpfile) do f
         
         # initialize dictionary, line counter
-        counter = 0
         inpD = Dict{String,Any}()
+
+        # default table type
+        inpD["ttabsrc"] = "trace"
         
         # loop over each line
         for line in eachline(f)
@@ -25,7 +28,7 @@ function read_gcinp(inpfile)
                 counter+=1
             end
             
-            # parse data line
+            # parse initial lines
             if counter == 1
                 inpD["evlist_fmt"] = parse(Int64,sline)
             elseif counter == 2
@@ -41,25 +44,39 @@ function read_gcinp(inpfile)
             elseif counter == 6
                 inpD["fin_xcordat"] = sline
             elseif counter == 7
-                inpD["fin_vzmdl"] = sline
+                inpD["ttabsrc"] = sline
             elseif counter == 8
-                inpD["fout_pTT"] = sline
+                inpD["fin_vzmdl"] = sline
             elseif counter == 9
-                inpD["fout_sTT"] = sline
+                inpD["fdir_ttab"] = sline
             elseif counter == 10
                 data = split(sline)
-                inpD["vpvs_factor"] = parse(Float64,data[1])
-                inpD["rayparam_min"] = parse(Float64,data[2])
+                if inpD["ttabsrc"] == "trace"
+                    inpD["vpvs_factor"] = parse(Float64,data[1])
+                    inpD["rayparam_min"] = parse(Float64,data[2])
+                else
+                    inpD["vpvs_factor"] = parse(Float64,data[1])
+                end
             elseif counter == 11
                 data = split(sline)
-                inpD["tt_dep0"] = parse(Float64,data[1])
-                inpD["tt_dep1"] = parse(Float64,data[2])
-                inpD["tt_ddep"] = parse(Float64,data[3])
+                if inpD["ttabsrc"] == "trace"
+                    inpD["tt_dep0"] = parse(Float64,data[1])
+                    inpD["tt_dep1"] = parse(Float64,data[2])
+                    inpD["tt_ddep"] = parse(Float64,data[3])
+                elseif inpD["ttabsrc"] == "nllgrid"
+                    inpD["tt_dep0"] = parse(Float64,data[1])
+                    inpD["tt_dep1"] = parse(Float64,data[2])
+                end
             elseif counter == 12
                 data = split(sline)
-                inpD["tt_del0"] = parse(Float64,data[1])
-                inpD["tt_del1"] = parse(Float64,data[2])
-                inpD["tt_ddel"] = parse(Float64,data[3])
+                if inpD["ttabsrc"] == "trace"
+                    inpD["tt_del0"] = parse(Float64,data[1])
+                    inpD["tt_del1"] = parse(Float64,data[2])
+                    inpD["tt_ddel"] = parse(Float64,data[3])
+                elseif inpD["ttabsrc"] == "nllgrid"
+                    inpD["tt_del0"] = parse(Float64,data[1])
+                    inpD["tt_del1"] = parse(Float64,data[2])
+                end
             elseif counter == 13
                 data = split(sline)
                 inpD["rmin"] = parse(Float64,data[1])
@@ -86,21 +103,25 @@ function read_gcinp(inpfile)
             else
                 break
             end
-                
+            
+
         end # close loop over lines
-        
+
         # check for too few lines
-        if counter <19
-            println("Error, fewer than 19 valid input file lines.")
+        if counter < 19
+            println("Error, too few input lines.")
+            println("Parsed inputs:\n",inpD)
             exit()
         else
+            # return results
             return inpD
         end
     
     end # closes file
     
-    # return results
+    # return
     return inpD
+
 end
 
 ### INPUT_CHECK validates input file parameters
@@ -112,19 +133,50 @@ function check_gcinp(inpD)
     # inputs assumed ok until proven otherwise
     println("Checking input parameters...")
     input_ok = true
-    
-    # check min ray parameters plongcutP, plongcutS
-    if ((inpD["plongcutP"] < 0) | (inpD["plongcutS"] < 0))
-        println("Input error, ray param cutoffs plongcutP, plongcut:")
-        println("$plongcutP, $plongcutS")   
-        input_ok = false
-    end
 
     # check vp/vs ratio
     if (inpD["vpvs_factor"] < 0.0)
         println("Input error, Vp/Vs vpvs_factor:")
         println("vpvs_factor") 
         input_ok = false
+    end
+
+    # check travel-time table: dep and del
+    #if ((inpD["tt_dep0"] < 0.0) | (
+    if (inpD["tt_dep1"] < inpD["tt_dep0"]) 
+        println( "Input error: travel time depth grid:")
+        println("min=",inpD["tt_dep0"], ", max=", inpD["tt_dep1"])
+        input_ok = false
+    end
+    if ((inpD["tt_del0"] < 0.0) | (inpD["tt_del1"] < inpD["tt_del0"])) 
+        println("Input error, travel time distance grid bounds:")
+        println("min=",inpD["tt_del0"], ", max=", inpD["tt_del1"])
+        input_ok = false
+    end
+
+    
+    # check for travel time table source and related params
+    if inpD["ttabsrc"] == "trace" # ray tracing
+
+        # check min ray parameters plongcutP, plongcutS
+        if  ((inpD["plongcutP"] < 0) | (inpD["plongcutS"] < 0))
+            println("Input error, ray param cutoffs plongcutP, plongcut:")
+            println(inpD["plongcutS"], ", ", inpD["plongcutS"])   
+            input_ok = false
+        end
+    
+    elseif inpD["ttabsrc"] == "nllgrid" # precomputed grids
+
+        # check for valid directory storing these files
+        if !(ispath(inpD["fdir_ttab"]))
+            println("Input error, no path to travel time grids:")
+            println(inpD["fdir_tab"])
+            input_ok = false
+        end
+
+    else # undefined
+        println("Input error, undefined ttabsrc: ", inpD["ttabsrc"])
+        input_ok=false
     end
 
     # check evlist and stlist format
@@ -153,21 +205,6 @@ function check_gcinp(inpD)
         input_ok = false
      end
 
-    # check travel-time table: dep and del
-    if ((inpD["tt_dep0"] < 0.0) | (
-         inpD["tt_dep1"] < inpD["tt_dep0"]) | (
-         inpD["tt_ddep"] > inpD["tt_dep1"]))
-        println( "Input error: travel time depth grid:")
-        println( "$tt_dep1, $tt_dep2, $tt_dep3")
-        input_ok = false
-    end
-    if ((inpD["tt_del0"] < 0.0) | (
-         inpD["tt_del1"] < inpD["tt_del0"]) | (
-         inpD["tt_ddel"] > inpD["tt_del1"]))
-        println("Input error, travel time distance grid:")
-        println("$tt_del1, $tt_del2, $tt_del3")
-        input_ok = false
-    end
 
     # check rmsmax and delmax
     if ((inpD["rmsmax"] <= 0.0) | (inpD["delmax"] <= 0.0) )
@@ -201,7 +238,7 @@ end
 #       boxwid, nit, irelonorm, vzmodel_type, mapproj
 #  < Returns: params_ok, a boolean check
 function check_auxparams(hshiftmax, vshiftmax, rmedmax,
-    boxwid, nit, irelonorm, vzmodel_type, ttabsrc, mapproj)
+    boxwid, nit, irelonorm, vzmodel_type, mapproj)
 
 # assume params ok unless problem is found
 println("Checking auxiliary run parameters")
@@ -236,20 +273,12 @@ if ((irelonorm < 1) | (irelonorm > 3))
     params_ok = false
 end
 
-# check vz_model type
+# check vz_model type (for 1D ray tracing)
 if ((vzmodel_type < 1) | (vzmodel_type > 3))  
     println("parameter error: vzmodel_type")
     println(vzmodel_type)
     params_ok = false
 end
-
-# travel time calculation mode
-if !(ttabsrc in ["trace"])
-    println("parameter error: ttabsrc")
-    println(ttabsrc)
-    params_ok=false
-end
-
 
 # check map projections
 if !(mapproj in ["aeqd", "lcc", "merc", "tmerc"])
