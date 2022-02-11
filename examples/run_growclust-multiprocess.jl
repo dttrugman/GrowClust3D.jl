@@ -37,11 +37,11 @@ const iseed = 0 # random number seed
 #  1: Resample each event pair independently (each pair always has the same # of picks in each resample)'
 #  2: Resample the entire data vectors at once (event pairs may have different # of picks in each resample)
         
-# ------- Velocity model parameters (added 04/2018) -------------------------
+# ------- Velocity model parameters -------------------------
 const vzmodel_type = 1 # velocity model type: 1 = flat earth, (Z,Vp,Vs)
                  #                  or  2 = radial, (R,Vp,Vs): 
                  #                note: option 2 has not been extensively tested
-const shallowmode = "flat" # option for how to treat shallow seismicity
+const shallowmode = "flat" # option for how to treat shallow seismicity for 1D ray tracing
                        # flat treats negative depths as zero depth
                        # reflect treats negative depths as equivalent to -depth; ok for true elevations
 

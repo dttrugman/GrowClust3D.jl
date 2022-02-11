@@ -322,16 +322,14 @@ end
 function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz,zstart)
     
     # validate zstart
-    if zstart > qdeptab[1]
-        println("Error in trace_rays: source depth above station")
-        println("$zstart > ",qdeptab[1])
-        exit()
-    elseif zstart < z_s[1]
+    # if zstart > qdeptab[1]
+    #     println("Error in trace_rays: source depth above station")
+    #     println("$zstart > ",qdeptab[1])
+    #     exit()
+    if zstart < z_s[1]
         println("Error in trace_rays: station above vzmodel start")
         println("$zstart < ",z_s[1])
         exit()
-    else
-        
     end
 
     # preferred interpolation method for earth-flattening
@@ -367,7 +365,7 @@ function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz,zstart)
         x, t = 0., 0.
 
         # find starting depth point
-        istart = findfirst(x->x>=zstart,z_s)
+        istart = findfirst(y->y>=zstart,z_s)
 
         # in case this is not an interpolated depth point
         if z_s[istart] > zstart
@@ -474,7 +472,7 @@ function first_arrivals(itype, plongcut, qdeptab, sdeltab, usurf, zstart,
     
     # loop over depth ranges
     for idep in 1:ndep
-        @printf("Table depth %d/%d\n",idep,ndep)
+        #@printf("Table depth %d/%d\n",idep,ndep)
 
         icount = 1 # reset index in save array
         xold = 0.0 # current x value
@@ -570,26 +568,36 @@ function first_arrivals(itype, plongcut, qdeptab, sdeltab, usurf, zstart,
         end
     end
                 
-    
-    # fix edge case: horizontal ray
-    if abs(qdeptab[1]-zstart)<0.01
-        surface_tt = usurf*sdeltab
-        if itype == 2
-            surface_tt *= kmdeg
+    # fix cases for qdep < station
+    for idep = 1:ndep
+        if qdeptab[idep] > zstart 
+            break # stop when we depth > station
+        else
+            dzdep = zstart - qdeptab[idep] # depth difference
+            if itype == 1 # flat earth case
+                tt_surf = usurf*sqrt.(dzdep^2 .+ sdeltab.^2) # straight ray
+                aa_surf = 90.0 .+ atand.(dzdep,sdeltab) # straight ray angle
+            else # spherical earth case
+                xx_surf = sdeltab*kmdeg # offset in km
+                tt_surf = usurf*sqrt.(dzdep^2 .+ xx_surf.^2) # straight ray tt
+                aa_surf = 90.0 .+ atand.(dzdep,xx_surf) # straight ray angle
+            end
+            ifix = ((isnan.(tt[:,idep])) .| (tt[:,idep] .>= tt_surf))
+            tt[:,idep] .= ifelse.(ifix,tt_surf,tt[:,idep]) # update tt
+            aa[:,idep] .= ifelse.(ifix,aa_surf,aa[:,idep]) # update aa
         end
-        ifix = ((isnan.(tt[:,1])) .| (tt[:,1] .>= surface_tt))
-        tt[:,1] .= ifelse.(ifix,surface_tt,tt[:,1])
-        aa[:,1] .= ifelse.(ifix,90.0,aa[:,1]) # horizontal ray
     end
+
         
     # fix edge case: straight up at zero range
     if abs(sdeltab[1])<0.01
         aa[1,:] .= 180.0
     end
             
-    # convert seconds to minutes, if necessary
+    # spherical earth
     if itype == 2
-        tt ./= 60.0
+        tt ./= 60.0 # to minutes
+        aa .*= erad # spherical ray parameter
     end
         
     # return results
@@ -601,7 +609,7 @@ end
 #######################################################################
 
 
-### WRITE_TABLE: Function to output travel time table to a file
+### WRITE_SMTRACE_TABLE: Function to output travel time table to a file
 #
 #  > Inputs
 #     outfile:  Full path to output file
@@ -616,7 +624,7 @@ end
 #
 #  < Returns: NONE
 
-function write_table(outfile,vmodel,iw,itype,TT,qdeptab,sdeltab,ptab,zstart)
+function write_smtrace_table(outfile,vmodel,iw,itype,TT,qdeptab,sdeltab,ptab,zstart)
     
     # array sizes
     ndel, ndep = size(TT)
@@ -668,7 +676,7 @@ end
 
 #######################################################################
 
-### smtrace_table: Function to read SeismoTrace Table
+### read_smtrace_table: Function to read SeismoTrace Table from a text file
 
 #  > Inputs
 #     fname:    Full path to travel time table
@@ -678,7 +686,7 @@ end
 #  < Returns: NONE
 #     TTinterp: interpolation objection, used like tt = TTinterp(sdist,qdep)
 
-function smtrace_table(fname,shallowmode="flat",dtype=Float64)
+function read_smtrace_table(fname,shallowmode="throw",dtype=Float64)
     
     # read all lines in file
     lines = readlines(fname)
@@ -702,21 +710,48 @@ function smtrace_table(fname,shallowmode="flat",dtype=Float64)
         tt[idel,:] = collect([parse(dtype,xx) for xx in sline[2:end]])
     end
     
-    # define interpolant object: bounds errors
-    #TTinterp = LinearInterpolation((dists,depths),tt)
-    
     # define interpolant object, with extrapolation options
-    #   distance < 0 --> distance = 0
-    #   distance > max --> linear extrapolation
-    #   depth < 0 --> depth = 0 for "flat" option, depth = -depth for "reflect"
-    #   depth > max --> linear extrapolation
     if shallowmode == "reflect"
         TTinterp = LinearInterpolation((dists,depths),tt,
-            extrapolation_bc=((Flat(),Line()),(Reflect(),Line())))
-    else # default is "shallow"
+            extrapolation_bc=((Line(),Line()),(Reflect(),Line())))
+    elseif shallowmode == "flat"
         TTinterp = LinearInterpolation((dists,depths),tt,
-            extrapolation_bc=((Flat(),Line()),(Flat(),Line())))
+            extrapolation_bc=((Line(),Line()),(Flat(),Line())))
+    elseif shallowmode == "line"
+        TTinterp = LinearInterpolation((dists,depths),tt,
+            extrapolation_bc=((Line(),Line()),(Line(),Line())))
+    else
+        TTinterp = LinearInterpolation((dists,depths),tt,
+            extrapolation_bc=((Line(),Line()),(Throw(),Line())))
+    end
+    
+end
+
+### make_smtrace_table: Function to make SeismoTrace Table from an Array
+
+#  > Inputs
+#     dists, depths: 1D arrays of distance and depth grid points
+#     tt: 2D array of values (e.g. travel times) at these points
+#     shallowmode: Sets the extrapolation condition at shallow depth
+#
+#  < Returns
+#     TTinterp: interpolation objection, used like tt = TTinterp(sdist,qdep)
+
+function make_smtrace_table(dists,depths,tt,shallowmode="throw")
+    
+    # define interpolant object, with extrapolation options
+    if shallowmode == "reflect" 
+        TTinterp = LinearInterpolation((dists,depths),tt,
+            extrapolation_bc=((Line(),Line()),(Reflect(),Line())))
+    elseif shallowmode == "flat"
+        TTinterp = LinearInterpolation((dists,depths),tt,
+            extrapolation_bc=((Line(),Line()),(Flat(),Line())))
+    elseif shallowmode == "line"
+        TTinterp = LinearInterpolation((dists,depths),tt,
+            extrapolation_bc=((Line(),Line()),(Line(),Line())))
+    else
+        TTinterp = LinearInterpolation((dists,depths),tt,
+            extrapolation_bc=((Line(),Line()),(Throw(),Line())))
     end
     return TTinterp
-    
 end
