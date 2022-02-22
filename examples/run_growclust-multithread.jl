@@ -19,16 +19,16 @@ const distmax = 5.0          # maximum catalog(input) distance to join clusters 
 const distmax2 = 3.0         # maximum relocated distance to join clusters (km)
 const hshiftmax = 2.0        # maximum permitted horizontal cluster shifts (km)
 const vshiftmax = 2.0        # maximum permitted vertical cluster shifts (km)
-const rmedmax = 0.05         # maximum median absolute tdif residual to join clusters
+const rmedmax = Float32(0.05)         # maximum median absolute tdif residual to join clusters
 const maxlink = 10           # use 10 best event pairs to relocate (optimize later...)
-const nupdate = 10000        # update progress every nupdate pairs - NEW
+const nupdate = 10000         # update progress every nupdate pairs - NEW
    
 # ------- Relative Relocation subroutine parameters -------------
 const boxwid = 3. # initial "shrinking-box" width (km)
 const nit = 15 # number of iterations
 const irelonorm = 1 # relocation norm (L1 norm=1, L2 norm=2, 3=robust L2)
-const tdifmax = 30. # maximum differential time value allowed (for error-checking on xcor data input)
-const torgdifmax = 10.0 # maximum origin time adjustment (for robustness)
+const tdifmax = Float32(30.) # maximum differential time value allowed (for error-checking on xcor data input)
+const torgdifmax = Float32(10.0) # maximum origin time adjustment (for robustness)
    
 # -------- Bootstrap resampling parameters -------------------
 const iseed = 0 # random number seed
@@ -327,7 +327,7 @@ if inpD["ttabsrc"] == "trace"
                                 usurf, zstart, ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
 
             # define interpolant object and add it to list
-            iTT = make_smtrace_table(sdeltab,qdeptab,TT,shallowmode)
+            iTT = make_smtrace_table(sdeltab,qdeptab,convert.(Float32,TT),shallowmode)
             push!(ttLIST,iTT)
 
             # optional output
@@ -509,7 +509,7 @@ rlons = qdf[:,:qlon]
 rXs = qdf[:,:qX4]
 rYs = qdf[:,:qY4]
 rdeps = qdf[:,:qdep]
-rorgs = zeros(Float64,nq) # origin time adjust
+rorgs = zeros(Float32,nq) # origin time adjust
 rcids = Vector{Int32}(1:nq) # initialize each event into one cluster
 npair = -1
 
@@ -518,7 +518,7 @@ if inpD["nboot"] > 0
     blatM = repeat(qdf.qlat,1,inpD["nboot"])
     blonM = repeat(qdf.qlon,1,inpD["nboot"])
     bdepM = repeat(qdf.qdep,1,inpD["nboot"])
-    borgM = zeros(Float64,(nq,inpD["nboot"]))
+    borgM = zeros(Float32,(nq,inpD["nboot"]))
     bnbM = repeat(Vector{Int32}(1:nq),1,inpD["nboot"])
 end
 
@@ -660,7 +660,7 @@ rcids = tdf.cid
 
 # finalize t-arrays
 tlons, tlats = zeros(nclust), zeros(nclust) 
-tdeps, torgs = zeros(nclust), zeros(nclust)
+tdeps, torgs = zeros(nclust), zeros(Float32,nclust)
 tnbranch = zeros(Int64,nclust)
 for icc in 1:nclust
     idx = findall(rcids.==icc)

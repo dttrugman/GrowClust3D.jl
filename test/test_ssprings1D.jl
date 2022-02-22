@@ -649,7 +649,7 @@ rcids = tdf.cid
 
 # finalize t-arrays
 tlons, tlats = zeros(nclust), zeros(nclust) 
-tdeps, torgs = zeros(nclust), zeros(nclust)
+tdeps, torgs = zeros(nclust), zeros(Float32,nclust)
 tnbranch = zeros(Int64,nclust)
 for icc in 1:nclust
     idx = findall(rcids.==icc)
