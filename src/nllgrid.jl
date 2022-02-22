@@ -89,7 +89,7 @@ end
 #   returns: interpolation object
 function make_nll_interp(grdfile,params)
     
-    # input extract grid parameters
+    # extract grid parameters
     xmin, ymin, zmin = params["xORG"], params["yORG"], params["zORG"]
     dX, dY, dZ = params["dX"], params["dY"], params["dZ"]
     nX, nY, nZ = params["nX"], params["nY"], params["nZ"]
@@ -97,7 +97,7 @@ function make_nll_interp(grdfile,params)
     ymax = ymin + dY*Float64(nY-1)
     zmax = zmin + dZ*Float64(nZ-1)
 
-    # generate arrays
+    # generate grid arrays
     xs = xmin:dX:xmax # not used in 2D
     ys = ymin:dY:ymax # y-->del in 2D
     zs = zmin:dZ:zmax # z-->dep in 2D
@@ -113,19 +113,20 @@ function make_nll_interp(grdfile,params)
     read!(grdfile,data)
 
     # reshape into Float64 grid: either (R,Z) or (X,Y,Z)
-    if nX == 1
-        data64 = convert.(Float64,permutedims(
-                reshape(data,nZ,nY),(2,1))) # output is R/Z order
-        #data64 = convert.(Float64,transpose(reshape(data,nZ,nY))) # 
+    if params["gtype"] == "TIME2D"
+        data = permutedims(reshape(data,nZ,nY),(2,1)) # output is R/Z order, Float32
+        #data = convert.(Float64,permutedims(
+        #        reshape(data,nZ,nY),(2,1))) # output is R/Z order
+        
     else
-        data64 = convert.(Float64,permutedims(
-                reshape(data,nZ,nY,nX),(3,2,1))) # output is X/Y/Z
-        #data64 = convert.(Float64,transpose(reshape(data,nZ,nY,nX))) 
+        data = permutedims(reshape(data,nZ,nY,nX),(3,2,1)) # output is X/Y/Z, Float32
+        #data = convert.(Float64,permutedims(
+        #        reshape(data,nZ,nY,nX),(3,2,1))) # output is X/Y/Z
     end
     
     # subset grid boundaries (saves memory)
     if "xbounds" in keys(params)
-        if nX == 1 # R, Z
+        if params["gtype"] == "TIME2D"
             ymin, ymax = params["xbounds"]
             idxY = findfirst(x->x>=ymin,ys)
             ymin = ys[idxY] # first on-grid point
@@ -136,7 +137,7 @@ function make_nll_interp(grdfile,params)
             zs = zmin:dZ:zmax # updates grid
             jdxY = idxY+length(ys)-1
             jdxZ = idxZ+length(zs)-1
-            data64 = data64[idxY:jdxY,idxZ:jdxZ] # slice data matrix
+            data = data[idxY:jdxY,idxZ:jdxZ] # slice data matrix
         else # X, Y, Z
             xmin, xmax = params["xbounds"]
             idxY = findfirst(x->x>=xmin,xs)
@@ -153,7 +154,7 @@ function make_nll_interp(grdfile,params)
             jdxX = idxX+length(xs)-1
             jdxY = idxY+length(ys)-1
             jdxZ = idxZ+length(zs)-1
-            data64 = data64[idxX:jdxX,idxY:jdxY,idxZ:jdxZ] # slice data matrix
+            data = data[idxX:jdxX,idxY:jdxY,idxZ:jdxZ] # slice data matrix
         end
     end
 
@@ -171,15 +172,17 @@ function make_nll_interp(grdfile,params)
         exconZ = Throw()
     end
     
-
     
     # define and interpolation object
-    if nX == 1 # 2D grid
+    if !("interp_mode" in keys(params))
+        params["interp_mode"] = "linear" # default to this
+    end
+    if params["gtype"] == "TIME2D" # 2D grid
         if params["interp_mode"] == "linear"
-            return LinearInterpolation( (ys,zs), data64, 
+            return LinearInterpolation( (ys,zs), data, 
             extrapolation_bc=( (Line(),Line()), (exconZ,Line()) ) )
         elseif params["interp_mode"] == "cubic"
-            return CubicSplineInterpolation((ys,zs), data64,
+            return CubicSplineInterpolation((ys,zs), data,
             extrapolation_bc=( (Line(),Line()), (exconZ,Line()) ) )
         else
             println("Error, undefined interpolation: ",params["interp_mode"])
@@ -187,10 +190,10 @@ function make_nll_interp(grdfile,params)
         end
     else # 3D grid
         if params["interp_mode"] == "linear"
-            return LinearInterpolation( (xs,ys,zs), data64,
+            return LinearInterpolation( (xs,ys,zs), data,
             extrapolation_bc=( (Line(),Line()), (Line(),Line()), (exconZ,Line()) ) )
         elseif params["interp_mode"] == "cubic"
-            return CubicSplineInterpolation((xs,ys,zs), data64,
+            return CubicSplineInterpolation((xs,ys,zs), data,
             extrapolation_bc=( (Line(),Line()), (Line(),Line()), (exconZ,Line()) ) )
         else
             println("Error, undefined interpolation: ",params["interp_mode"])
@@ -198,4 +201,5 @@ function make_nll_interp(grdfile,params)
         end 
     end
 end
+
 

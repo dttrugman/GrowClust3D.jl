@@ -7,7 +7,7 @@ examples/plot_ridgecrest.jl
 examples/plot_ssprings.jl
 old/*
 old
-test/make_nllgrids_*
-test/nll-*
-test/test.grid.inp
+test/make_nllgrid*.jl
+test/nll-run*
+test/nll-grd3
 test/.*

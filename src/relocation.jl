@@ -152,22 +152,22 @@ end
 
 ##### difclust1: L1 residual norm
 function difclust1(qX0::Float64,qY0::Float64,qZ0::Float64,
-    tdif::Vector{Float64},itab::Vector{Int16},
+    tdif::Vector{Float32},itab::Vector{Int16},
     sX::Vector{Float64},sY::Vector{Float64},
     qX1::Vector{Float64},qY1::Vector{Float64},
-    qZ1::Vector{Float64},qT1::Vector{Float64},
+    qZ1::Vector{Float64},qT1::Vector{Float32},
     qX2::Vector{Float64},qY2::Vector{Float64},
-    qZ2::Vector{Float64},qT2::Vector{Float64},
+    qZ2::Vector{Float64},qT2::Vector{Float32},
     ttTABs,boxwid::Float64,nit::Int64)
 
 # initialize variables to track best solution
 fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
 fxbest2, fybest2, fzbest2 = 0.0, 0.0, 0.0
-torgdif = 0.0
+torgdif = Float32(0.0)
 
 # extract npick
 npick = length(tdif)
-resid = zeros(npick)
+resid = zeros(Float32,npick)
 
 # initialize box
 dX0, dY0, dZ0 = 0.0, 0.0, 0.0 # C1 shift from initial centroid
@@ -186,8 +186,8 @@ dZ = 0.5*zboxwid # analagous to dX and dY
 for it=1:nit
     
     # grid search over box for best fit
-    fitbest = 1.0e20
-    tbest = 0.0
+    fitbest = Float32(1.0e20)
+    tbest = Float32(0.0)
     
     # get trial locations: f1, f2 (3x3 grid for this box iteration)
     for iy = -1.0:1.0
@@ -204,8 +204,8 @@ for it=1:nit
                 sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
                 sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1)
-                    tt2 = ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1))
+                    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2))
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -259,8 +259,8 @@ cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
 sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
 sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii])
-    tt2 = ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii])
+    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii]))
+    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii]))
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -276,22 +276,22 @@ end
 
 ##### difclust2: L2 residual norm
 function difclust2(qX0::Float64,qY0::Float64,qZ0::Float64,
-    tdif::Vector{Float64},itab::Vector{Int16},
+    tdif::Vector{Float32},itab::Vector{Int16},
     sX::Vector{Float64},sY::Vector{Float64},
     qX1::Vector{Float64},qY1::Vector{Float64},
-    qZ1::Vector{Float64},qT1::Vector{Float64},
+    qZ1::Vector{Float64},qT1::Vector{Float32},
     qX2::Vector{Float64},qY2::Vector{Float64},
-    qZ2::Vector{Float64},qT2::Vector{Float64},
+    qZ2::Vector{Float64},qT2::Vector{Float32},
     ttTABs,boxwid::Float64,nit::Int64)
 
 # initialize variables to track best solution
 fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
 fxbest2, fybest2, fzbest2 = 0.0, 0.0, 0.0
-torgdif = 0.0
+torgdif = Float32(0.0)
 
 # extract npick
 npick = length(tdif)
-resid = zeros(npick)
+resid = zeros(Float32,npick)
 
 # initialize box
 dX0, dY0, dZ0 = 0.0, 0.0, 0.0 # C1 shift from initial centroid
@@ -310,8 +310,8 @@ dZ = 0.5*zboxwid # analagous to dX and dY
 for it=1:nit
     
     # grid search over box for best fit
-    fitbest = 1.0e20
-    tbest = 0.0
+    fitbest = Float32(1.0e20)
+    tbest = Float32(0.0)
     
     # get trial locations: f1, f2 (3x3 grid for this box iteration)
     for iy = -1.0:1.0
@@ -328,8 +328,8 @@ for it=1:nit
                 sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
                 sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1)
-                    tt2 = ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1))
+                    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2))
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -383,8 +383,8 @@ cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
 sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
 sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii])
-    tt2 = ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii])
+    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii]))
+    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii]))
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -400,22 +400,22 @@ end
 
 ##### difclust3: L3 / Robomean Norm
 function difclust3(qX0::Float64,qY0::Float64,qZ0::Float64,
-    tdif::Vector{Float64},itab::Vector{Int16},
+    tdif::Vector{Float32},itab::Vector{Int16},
     sX::Vector{Float64},sY::Vector{Float64},
     qX1::Vector{Float64},qY1::Vector{Float64},
-    qZ1::Vector{Float64},qT1::Vector{Float64},
+    qZ1::Vector{Float64},qT1::Vector{Float32},
     qX2::Vector{Float64},qY2::Vector{Float64},
-    qZ2::Vector{Float64},qT2::Vector{Float64},
+    qZ2::Vector{Float64},qT2::Vector{Float32},
     ttTABs,boxwid::Float64,nit::Int64)
 
 # initialize variables to track best solution
 fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
 fxbest2, fybest2, fzbest2 = 0.0, 0.0, 0.0
-torgdif = 0.0
+torgdif = Float32(0.0)
 
 # extract npick
 npick = length(tdif)
-resid = zeros(npick)
+resid = zeros(Float32,npick)
 
 # initialize box
 dX0, dY0, dZ0 = 0.0, 0.0, 0.0 # C1 shift from initial centroid
@@ -434,8 +434,8 @@ dZ = 0.5*zboxwid # analagous to dX and dY
 for it=1:nit
     
     # grid search over box for best fit
-    fitbest = 1.0e20
-    tbest = 0.0
+    fitbest = Float32(1.0e20)
+    tbest = Float32(0.0)
     
     # get trial locations: f1, f2 (3x3 grid for this box iteration)
     for iy = -1.0:1.0
@@ -452,8 +452,8 @@ for it=1:nit
                 sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
                 sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
                 @inbounds for ii=1:npick
-                    tt1 = ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1)
-                    tt2 = ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2)
+                    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1))
+                    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2))
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -506,8 +506,8 @@ cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
 sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
 sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii])
-    tt2 = ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii])
+    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii]))
+    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii]))
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -542,10 +542,10 @@ end
 #
 # function with i32 ixx arrays
 function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int32},ixx2::Vector{Int32},
-    tdif::Vector{Float64},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
+    tdif::Vector{Float32},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
     qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
-    nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float64,rmedmax::Float64,
-    distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float64,
+    nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float32,rmedmax::Float32,
+    distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float32,
     nupdate::Int64,maxlink::Int64)
 
     # setup parameters
@@ -560,14 +560,14 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     brXs = copy(qXs)
     brYs = copy(qYs)
     brZs = copy(qZs)
-    brorgs = zeros(nq)
+    brorgs = zeros(Float32,nq)
     brcids = Vector{Int32}(1:nq)
 
     # initialize clustering tree arrays
     btXs = copy(brXs)
     btYs = copy(brYs)
     btZs = copy(brZs)
-    btorgs = zeros(nq)
+    btorgs = zeros(Float32,nq)
     btnbranch = ones(Int32,nq)
 
     # dictionary with cid => event indices (note cid=qix on initialization)
@@ -631,11 +631,11 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
 
     # extract locations relative to centroid
     dqX1, dqY1 = zeros(npick),zeros(npick)
-    dqZ1, dqorg1 = zeros(npick),zeros(npick)
+    dqZ1, dqorg1 = zeros(npick),zeros(Float32,npick)
     dqX2, dqY2 = zeros(npick),zeros(npick)
-    dqZ2, dqorg2 = zeros(npick),zeros(npick)
+    dqZ2, dqorg2 = zeros(npick),zeros(Float32,npick)
     tab21, sX21, sY21 = zeros(Int16,npick), zeros(npick), zeros(npick)
-    tdif21 = zeros(npick)
+    tdif21 = zeros(Float32,npick)
     ix1 = 1 # start index for event pair in the arrays above
     @inbounds for jj in linx
         pix1, pix2, jx1, jx2 = pqix1[jj],pqix2[jj],ixx1[jj],ixx2[jj]
@@ -814,10 +814,10 @@ end
 
 ####### function with i64 ixx arrays
 function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int64},ixx2::Vector{Int64},
-    tdif::Vector{Float64},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
+    tdif::Vector{Float32},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
     qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
-    nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float64,rmedmax::Float64,
-    distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float64,
+    nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float32,rmedmax::Float32,
+    distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float32,
     nupdate::Int64,maxlink::Int64)
 
     # setup parameters
@@ -832,14 +832,14 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     brXs = copy(qXs)
     brYs = copy(qYs)
     brZs = copy(qZs)
-    brorgs = zeros(nq)
+    brorgs = zeros(Float32,nq)
     brcids = Vector{Int32}(1:nq)
 
     # initialize clustering tree arrays
     btXs = copy(brXs)
     btYs = copy(brYs)
     btZs = copy(brZs)
-    btorgs = zeros(nq)
+    btorgs = zeros(Float32,nq)
     btnbranch = ones(Int32,nq)
 
     # dictionary with cid => event indices (note cid=qix on initialization)
@@ -903,11 +903,11 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
 
     # extract locations relative to centroid
     dqX1, dqY1 = zeros(npick),zeros(npick)
-    dqZ1, dqorg1 = zeros(npick),zeros(npick)
+    dqZ1, dqorg1 = zeros(npick),zeros(Float32,npick)
     dqX2, dqY2 = zeros(npick),zeros(npick)
-    dqZ2, dqorg2 = zeros(npick),zeros(npick)
+    dqZ2, dqorg2 = zeros(npick),zeros(Float32,npick)
     tab21, sX21, sY21 = zeros(Int16,npick), zeros(npick), zeros(npick)
-    tdif21 = zeros(npick)
+    tdif21 = zeros(Float32,npick)
     ix1 = 1 # start index for event pair in the arrays above
     @inbounds for jj in linx
         pix1, pix2, jx1, jx2 = pqix1[jj],pqix2[jj],ixx1[jj],ixx2[jj]
