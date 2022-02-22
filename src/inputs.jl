@@ -79,13 +79,13 @@ function read_gcinp(inpfile)
                 end
             elseif counter == 13
                 data = split(sline)
-                inpD["rmin"] = parse(Float64,data[1])
+                inpD["rmin"] = parse(Float32,data[1])
                 inpD["delmax"] = parse(Float64,data[2])
-                inpD["rmsmax"] = parse(Float64,data[3])
+                inpD["rmsmax"] = parse(Float32,data[3])
             elseif counter == 14
                 data = split(sline)
-                inpD["rpsavgmin"] = parse(Float64,data[1])
-                inpD["rmincut"] = parse(Float64,data[2])
+                inpD["rpsavgmin"] = parse(Float32,data[1])
+                inpD["rmincut"] = parse(Float32,data[2])
                 inpD["ngoodmin"] = parse(Int64,data[3])
                 inpD["iponly"] = parse(Int64,data[4])
             elseif counter == 15
@@ -390,9 +390,9 @@ function read_xcordata_lonlat(inpD,qdf,sdf)
     xcfile = inpD["fin_xcordat"]
     xcfmt = inpD["xcordat_fmt"]
     tdiffmt = inpD["tdif_fmt"]
-    rmincut = Float32(inpD["rmincut"])
-    rpsavgmin = Float32(inpD["rpsavgmin"])
-    rmingood = Float32(inpD["rmin"])
+    rmincut = inpD["rmincut"]
+    rpsavgmin = inpD["rpsavgmin"]
+    rmingood = inpD["rmin"]
     ngoodmin =inpD["ngoodmin"]
     iponly = inpD["iponly"]
     delmax = inpD["delmax"]
@@ -405,7 +405,7 @@ function read_xcordata_lonlat(inpD,qdf,sdf)
     
     # read initial data
     cols = ["sta", "tdif", "rxcor", "iphase"]
-    tmap = [String, Float64, Float32, Int8]
+    tmap = [String, Float32, Float32, Int8]
     xdf = DataFrame(readdlm(xcfile,Any,
         comments=true,comment_char='#', use_mmap=true),cols)
     Threads.@threads for ii in 1:length(cols)
@@ -474,7 +474,7 @@ function read_xcordata_lonlat(inpD,qdf,sdf)
     
     # redefine tdif to default tt2 - tt1
     if tdiffmt == 12
-        xdf[!,:tdif].*=-1.0
+        xdf[!,:tdif].*=Float32(-1.0)
     end
     
     # Return       
@@ -495,9 +495,9 @@ function read_xcordata_proj(inpD,qdf,sdf)
     xcfile = inpD["fin_xcordat"]
     xcfmt = inpD["xcordat_fmt"]
     tdiffmt = inpD["tdif_fmt"]
-    rmincut = Float32(inpD["rmincut"])
-    rpsavgmin = Float32(inpD["rpsavgmin"])
-    rmingood = Float32(inpD["rmin"])
+    rmincut = inpD["rmincut"]
+    rpsavgmin = inpD["rpsavgmin"]
+    rmingood = inpD["rmin"]
     ngoodmin =inpD["ngoodmin"]
     iponly = inpD["iponly"]
     delmax = inpD["delmax"]
@@ -510,7 +510,7 @@ function read_xcordata_proj(inpD,qdf,sdf)
     
     # read initial data
     cols = ["sta", "tdif", "rxcor", "iphase"]
-    tmap = [String, Float64, Float32, Int8]
+    tmap = [String, Float32, Float32, Int8]
     xdf = DataFrame(readdlm(xcfile,Any,
         comments=true,comment_char='#', use_mmap=true),cols)
     Threads.@threads for ii in 1:length(cols)
@@ -580,7 +580,7 @@ function read_xcordata_proj(inpD,qdf,sdf)
     
     # redefine tdif to default tt2 - tt1
     if tdiffmt == 12
-        xdf[!,:tdif].*=-1.0
+        xdf[!,:tdif].*=Float32(-1.0)
     end
     
     # Return       

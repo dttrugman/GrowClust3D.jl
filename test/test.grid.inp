@@ -1,0 +1,72 @@
+****  Example GrowClust Control File  *****
+******   Spanish Springs Sequence   *******
+********  Daniel Trugman, 2022   **********
+*******************************************
+*
+*******************************************
+*************  Event list  ****************
+*******************************************
+* evlist_fmt (1 = phase, 2 = GrowClust, 3 = HypoInverse)
+1
+* fin_evlist (event list file name)
+data/evlist.txt
+*
+*******************************************
+************   Station list   *************
+*******************************************
+* stlist_fmt (1 = station name)
+1
+* fin_stlist (station list file name)
+data/stlist.txt
+*
+*******************************************
+*************   XCOR data   ***************
+*******************************************
+* xcordat_fmt (1 = text), tdif_fmt (21 = tt2-tt1, 12 = tt1-tt2)
+1  12
+* fin_xcordat
+data/xcordata.txt
+*
+*******************************************
+*** Velocity Model / Travel Time Tables ***
+*******************************************
+* ttabsrc: travel time table source ("trace" or "nllgrid")
+nllgrid
+* fin_vzmdl (model name)
+g2t
+* fdir_ttab (directory for travel time tables/grids or NONE)
+nll-grd/
+*
+******************************************
+***** Travel Time Table Parameters  ******
+******************************************
+* vpvs_factor
+  1.732             
+* tt_dep0  tt_dep1
+   0.0        26.0 
+* tt_del0  tt_del1
+   0.0        200.0
+*
+******************************************
+***** GrowClust Algorithm Parameters *****
+******************************************
+* rmin  delmax rmsmax 
+   0.6    80    0.2
+* rpsavgmin, rmincut  ngoodmin   iponly 
+    0          0         0        0
+*
+******************************************
+************ Output files ****************
+******************************************
+* nboot  nbranch_min
+   0         2
+* fout_cat (relocated catalog)
+NONE
+* fout_clust (relocated cluster file)
+NONE
+* fout_log (program log)
+NONE
+* fout_boot (bootstrap distribution)
+NONE
+******************************************
+******************************************
