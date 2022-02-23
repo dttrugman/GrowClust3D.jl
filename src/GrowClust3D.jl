@@ -21,7 +21,7 @@ export write_smtrace_table, read_smtrace_table, make_smtrace_table
 
 # exports from nllgrid
 include("nllgrid.jl")
-export read_nll_head, make_nll_interp
+export read_nll_head, make_nll_interp, check_proj
 
 # exports from inputs
 include("inputs.jl")

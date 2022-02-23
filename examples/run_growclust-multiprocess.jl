@@ -91,6 +91,7 @@ if input_ok
     println("Input parameters are ok!")
 else
     println("ERROR: FIX INPUT PARAMETERS")
+    exit()
 end
 
 # make output paths
@@ -116,6 +117,7 @@ if input_ok
     println("Auxiliary parameters are ok!")
 else
     println("ERROR: FIX AUXILIARY PARAMETERS")
+    exit()
 end
 
 ### Print Input Parameters

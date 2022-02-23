@@ -51,13 +51,22 @@ function read_gcinp(inpfile)
                 inpD["fdir_ttab"] = sline
             elseif counter == 10
                 data = split(sline)
+                inpD["proj"] = data[1]
+                inpD["lon0"] = parse(Float64,data[2])
+                inpD["lat0"] = parse(Float64,data[3])
+                if inpD["proj"] == "lcc"
+                    inpD["latp1"] = parse(Float64,data[4])
+                    inpD["latp2"] = parse(Float64,data[5])
+                end
+            elseif counter == 11
+                data = split(sline)
                 if inpD["ttabsrc"] == "trace"
                     inpD["vpvs_factor"] = parse(Float64,data[1])
                     inpD["rayparam_min"] = parse(Float64,data[2])
                 else
                     inpD["vpvs_factor"] = parse(Float64,data[1])
                 end
-            elseif counter == 11
+            elseif counter == 12
                 data = split(sline)
                 if inpD["ttabsrc"] == "trace"
                     inpD["tt_dep0"] = parse(Float64,data[1])
@@ -67,7 +76,7 @@ function read_gcinp(inpfile)
                     inpD["tt_dep0"] = parse(Float64,data[1])
                     inpD["tt_dep1"] = parse(Float64,data[2])
                 end
-            elseif counter == 12
+            elseif counter == 13
                 data = split(sline)
                 if inpD["ttabsrc"] == "trace"
                     inpD["tt_del0"] = parse(Float64,data[1])
@@ -77,28 +86,28 @@ function read_gcinp(inpfile)
                     inpD["tt_del0"] = parse(Float64,data[1])
                     inpD["tt_del1"] = parse(Float64,data[2])
                 end
-            elseif counter == 13
+            elseif counter == 14
                 data = split(sline)
                 inpD["rmin"] = parse(Float32,data[1])
                 inpD["delmax"] = parse(Float64,data[2])
                 inpD["rmsmax"] = parse(Float32,data[3])
-            elseif counter == 14
+            elseif counter == 15
                 data = split(sline)
                 inpD["rpsavgmin"] = parse(Float32,data[1])
                 inpD["rmincut"] = parse(Float32,data[2])
                 inpD["ngoodmin"] = parse(Int64,data[3])
                 inpD["iponly"] = parse(Int64,data[4])
-            elseif counter == 15
+            elseif counter == 16
                 data = split(sline)
                 inpD["nboot"] = parse(Int64,data[1])
                 inpD["nbranch_min"] = parse(Int64,data[2])
-            elseif counter == 16
-                inpD["fout_cat"] = sline
             elseif counter == 17
-                inpD["fout_clust"] = sline
+                inpD["fout_cat"] = sline
             elseif counter == 18
-                inpD["fout_log"] = sline
+                inpD["fout_clust"] = sline
             elseif counter == 19
+                inpD["fout_log"] = sline
+            elseif counter == 20
                 inpD["fout_boot"] = sline  
             else
                 break
@@ -108,7 +117,7 @@ function read_gcinp(inpfile)
         end # close loop over lines
 
         # check for too few lines
-        if counter < 19
+        if counter < 20
             println("Error, too few input lines.")
             println("Parsed inputs:\n",inpD)
             exit()
@@ -225,7 +234,14 @@ function check_gcinp(inpD)
          println( "Input error: nboot, maxboot")
          println( "$nboot, $maxboot")
          input_ok = false
-    end    
+    end
+    
+    # check map projections
+    if !(inpD["proj"] in ["aeqd", "lcc", "merc", "tmerc"])
+        println("parameter error: mapproj (not implemented)")
+        println(inpD["proj"])
+        input_ok = false
+    end
 
     # return
     return input_ok
@@ -235,10 +251,10 @@ end
 ### CHECK_AUXPARAMS validates global parameters
 #
 #  > Inputs: global run parameters: hshiftmax, vshiftmax, rmedmax,
-#       boxwid, nit, irelonorm, vzmodel_type, mapproj
+#       boxwid, nit, irelonorm, vzmodel_type
 #  < Returns: params_ok, a boolean check
 function check_auxparams(hshiftmax, vshiftmax, rmedmax,
-    boxwid, nit, irelonorm, vzmodel_type, mapproj)
+    boxwid, nit, irelonorm, vzmodel_type)
 
 # assume params ok unless problem is found
 println("Checking auxiliary run parameters")
@@ -277,13 +293,6 @@ end
 if ((vzmodel_type < 1) | (vzmodel_type > 3))  
     println("parameter error: vzmodel_type")
     println(vzmodel_type)
-    params_ok = false
-end
-
-# check map projections
-if !(mapproj in ["aeqd", "lcc", "merc", "tmerc"])
-    println("parameter error: mapproj (not implemented)")
-    println(mapproj)
     params_ok = false
 end
 

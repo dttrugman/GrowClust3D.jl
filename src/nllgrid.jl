@@ -1,3 +1,52 @@
+### Check projections in NonLinLoc Header Against Proj4
+function check_proj(hdrD,inpD)
+    
+    # ok until proven otherwise
+    proj_ok = true
+
+    # maps projection names from Proj4 to NonLinLoc
+    projD = Dict(zip(["aeqd", "lcc", "merc", "tmerc"],
+                 ["AZIMUTHAL_EQUIDIST","LAMBERT","MERC","TRANS_MERC"]))
+
+    # check projection
+    if projD[inpD["proj"]] != hdrD["proj"]
+        println("ERROR: PROJECTION TYPE MISMATCH")
+        println(inpD["proj"], " & ", hdrD["proj"])
+        proj_ok = false
+    end
+
+    # check lat0
+    if inpD["lat0"] != hdrD["latORG"]
+        println("ERROR: PROJECTION LAT0 MISMATCH")
+        println(inpD["lat0"], " & ", hdrD["latORG"])
+        proj_ok = false
+    end
+    
+    # check lon0
+    if inpD["lon0"] != hdrD["lonORG"]
+        println("ERROR: PROJECTION LON0 MISMATCH")
+        println(inpD["lon0"], " & ", hdrD["lonORG"])
+        proj_ok = false
+    end
+    
+    # check rotation (not supported by Proj4 as far as I can tell)
+    if hdrD["rot_angle"] != 0.0
+        println("ERROR: PROJECTION ROT_ANGLE !=0.0")
+        proj_ok = false    
+    end
+            
+    # check parallels (LAMBERT ONLY)
+    if hdrD["proj"] == "LAMBERT"
+        if !((hdrD["parallel1"] == inpD["latp1"]) & (hdrD["parallel2"] == inpD["latp2"]))
+            println("ERROR: PROJECTION PARALLEL MISMATCH")
+            proj_ok = false
+        end
+    end
+
+    # hope this stays at 0
+    return proj_ok
+end
+
 ### Read NonLinLoc Travel Time Table Header
 #   input: path to header file (extension optional)
 #   returns: dictionary of header information
@@ -46,21 +95,21 @@ function read_nll_head(hdrfile)
                 if hdrD["proj"] == "NONE"
                     continue
                 elseif hdrD["proj"] in ["SDC", "SIMPLE"]
-                    hdrD["latO"] = parse(Float32,vals[4])
-                    hdrD["lonO"] = parse(Float32,vals[6])
-                    hdrD["rot_angle"] = parse(Float32,vals[8])
+                    hdrD["latORG"] = parse(Float64,vals[4])
+                    hdrD["lonORG"] = parse(Float64,vals[6])
+                    hdrD["rot_angle"] = parse(Float64,vals[8])
                 elseif hdrD["proj"] == "LAMBERT"
                     hdrD["ellipse"] = vals[4]
-                    hdrD["latORG"] = parse(Float32,vals[6])
-                    hdrD["lonORG"] = parse(Float32,vals[8])
-                    hdrD["parallell"] = parse(Float32,vals[10])
-                    hdrD["parallel2"] = parse(Float32,vals[12])
-                    hdrD["rot_angle"] = parse(Float32,vals[14])
+                    hdrD["latORG"] = parse(Float64,vals[6])
+                    hdrD["lonORG"] = parse(Float64,vals[8])
+                    hdrD["parallel1"] = parse(Float64,vals[10])
+                    hdrD["parallel2"] = parse(Float64,vals[12])
+                    hdrD["rot_angle"] = parse(Float64,vals[14])
                 elseif hdrD["proj"] in ["TRANS_MERC", "AZIMUTHAL_EQUIDIST"]
                     hdrD["ellipse"] = vals[4]
-                    hdrD["latORG"] = parse(Float32,vals[6])
-                    hdrD["lonORG"] = parse(Float32,vals[8])
-                    hdrD["rot_angle"] = parse(Float32,vals[10])
+                    hdrD["latORG"] = parse(Float64,vals[6])
+                    hdrD["lonORG"] = parse(Float64,vals[8])
+                    hdrD["rot_angle"] = parse(Float64,vals[10])
                 end
              
             # station line
