@@ -51,7 +51,6 @@ const ttabmode = "bystation" # travel time table mode ("bystation" or "byphase")
 # ------- Geodetic parameters -------------
 const degkm = 111.1949266 # for simple degree / km conversion
 const erad = 6371.0 # average earth radius in km, WGS-84
-const mapproj = "tmerc" # projection for Proj4 ("aeqd", "lcc", "merc", "tmerc")
 const rellipse = "WGS84" # reference ellipse for Proj4 (e.g. "WGS84")
 
 ### Read Input File
@@ -112,7 +111,7 @@ end
 
 ### Check Auxiliary Parameters
 params_ok = check_auxparams(hshiftmax, vshiftmax, rmedmax,
-        boxwid, nit, irelonorm, vzmodel_type, mapproj)
+        boxwid, nit, irelonorm, vzmodel_type)
 if input_ok
     println("Auxiliary parameters are ok!")
 else
@@ -121,7 +120,6 @@ else
 end
 
 ### Print Input Parameters
-
 println("\nInput verified! Check results below:")
 println("====================================")
 @printf("Input files:\n")
@@ -134,11 +132,12 @@ println("> Xcor format: ", inpD["xcordat_fmt"])
 println("> Tdif format: ", inpD["tdif_fmt"])
 println("> Travel time source: ", inpD["ttabsrc"])
 println("> Velocity/Grid model: ", inpD["fin_vzmdl"])
+println("Travel time grid directory: ",inpD["fdir_ttab"])
+@printf("Projection: %s %.6f %.6f\n",inpD["proj"],inpD["lon0"],inpD["lat0"])
 print("Travel-time table depths (min, max): ")
 @printf("%.2f %.2f\n",inpD["tt_dep0"],inpD["tt_dep1"])
 print("Travel-time table ranges (min, max): ")
 @printf("%.2f %.2f\n",inpD["tt_del0"],inpD["tt_del1"])
-println("Travel time grid directory: ",inpD["fdir_ttab"])
 @printf("GrowClust parameters:\n")
 @printf("> rmin, delmax, rmsmax: %.3f %.1f %.3f\n",
     inpD["rmin"],inpD["delmax"],inpD["rmsmax"])
@@ -156,9 +155,27 @@ println("> Log file: ", inpD["fout_log"])
 println("\nReading event list:")
 @time qdf = read_evlist(inpD["fin_evlist"],inpD["evlist_fmt"])
 qid2qnum = Dict(zip(qdf.qid,qdf.qix))# maps event id to serial number
-qlat0 = median(qdf.qlat)
-qlon0 = median(qdf.qlon)
-println("Median event location: $qlon0 $qlat0")
+mlat0, mlon0 = median(qdf.qlat), median(qdf.qlon)
+mlat01, mlat99 = percentile(qdf.qlat,1.0), percentile(qdf.qlat,99.0)
+mlon01, mlon99 = percentile(qdf.qlon,1.0), percentile(qdf.qlon,99.0)
+println("Median event location: $mlon0 $mlat0")
+println("Longitude Percentiles (1%, 99%): $mlon01 $mlon99")
+println("Latitude Percentiles (1%, 99%): $mlat01 $mlat99")
+
+# validate projection
+plat0, plon0 = inpD["lat0"], inpD["lon0"]
+println("Projection origin: $plon0 $plat0")
+if inpD["proj"] == "lcc"
+    plat1, plat2 = inpD["latp1"], inpD["latp2"]
+    println("Lambert Projection Parallels  : $plat1 $plat2")
+end
+if !(mlon01 < plon0 < mlon99)
+    println("PROJECTION ORIGIN NOT ALIGNED WITH SEISMICITY:")
+    exit()
+elseif !(mlat01 < plat0 < mlat99)
+    println("PROJECTION ORIGIN NOT ALIGNED WITH SEISMICITY:")
+    exit()
+end
 
 ### Read Stations
 print("\nReading station list")
@@ -173,17 +190,16 @@ sta2elev = Dict(zip(sdf.sta,sdf.selev)) # map station to elevation
 # ### Map Projection
 
 # # setup projection
+mapproj = inpD["proj"]
 if mapproj in ["aeqd", "tmerc"]
     proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
-        "+proj=$mapproj +datum=$rellipse +lat_0=$qlat0 +lon_0=$qlon0 +units=km")
+        "+proj=$mapproj +datum=$rellipse +lat_0=$plat0 +lon_0=$plon0 +units=km")
 elseif mapproj == "merc"
     proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
-        "+proj=$mapproj +datum=$rellipse +lat_ts=$qlat0 +lon_0=$qlon0 +units=km")
+        "+proj=$mapproj +datum=$rellipse +lat_ts=$plat0 +lon_0=$plon0 +units=km")
 elseif mapproj == "lcc"
-    qlat1 = percentile(qdf.qlat,1.0)
-    qlat2 = percentile(qdf.qlat,99.0)
     proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
-    "+proj=$mapproj +datum=$rellipse +lat_0=$qlat0 +lon_0=$qlon0 +lat_1= $qlat1 +lat_2=$qlat2 +units=km")
+    "+proj=$mapproj +datum=$rellipse +lat_0=$plat0 +lon_0=$plon0 +lat_1= $plat1 +lat_2=$plat2 +units=km")
 else
     println("ERROR, map projection not defined! ", mapproj)
     exit()
@@ -375,6 +391,13 @@ elseif inpD["ttabsrc"] == "nllgrid"
 
             # get header
             grdparams = read_nll_head(inpD["fdir_ttab"]*fname)
+
+            # check projection
+            proj_ok = check_proj(grdparams, inpD)
+            if !(proj_ok)
+                println("ERROR: PROJECTION MISMATCH: $fname")
+                exit()
+            end
             
             # update header
             grdparams["interp_mode"] = "linear"

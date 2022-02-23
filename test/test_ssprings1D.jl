@@ -118,7 +118,6 @@ else
 end
 
 ### Print Input Parameters
-
 println("\nInput verified! Check results below:")
 println("====================================")
 @printf("Input files:\n")
@@ -394,7 +393,7 @@ elseif inpD["ttabsrc"] == "nllgrid"
             # check projection
             proj_ok = check_proj(grdparams, inpD)
             if !(proj_ok)
-                println("ERROR: PROJECTION MISMATCH")
+                println("ERROR: PROJECTION MISMATCH: $fname")
                 exit()
             end
             

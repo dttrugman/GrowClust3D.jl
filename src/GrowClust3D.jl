@@ -29,7 +29,9 @@ export read_evlist, read_stlist, read_vzmodel, read_xcordata_proj
 export check_gcinp, check_auxparams, read_gcinp
 
 # exports from relocation
-include("relocation.jl")
+include("relocation1D.jl")
 export evalrms, difclust1, difclust2, difclust3, map_distance, robomean, clustertree, xydist
+include("relocation3D.jl")
+export difclust1_3D, difclust2_3D, difclust3_3D, clustertree_3D
 
 end # module

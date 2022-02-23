@@ -36,9 +36,8 @@ nllgrid
 g2t
 * fdir_ttab (directory for travel time tables/grids or NONE)
 nll-grd/
-*
 * projection (name, lon0, lat0, [latP1, latP2])
-tmerc -119.690000 39.660000
+tmerc -119.690000 39.665000
 *
 ******************************************
 ***** Travel Time Table Parameters  ******

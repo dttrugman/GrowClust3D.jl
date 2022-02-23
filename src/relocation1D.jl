@@ -134,7 +134,7 @@ end
 #         qY2  =  array (len=npick) of events in cluster2 ypos offsets
 #         qZ2  =  array (len=npick) of events in cluster2 depth offsets
 #         qT2  =  array (len=npick) of events in cluster2 time offsets
-#         ttTABs =  travel time tables for P and S phases
+#         ttTABs =  travel time tables for different phases and stations
 #         boxwid =  starting box width (km)
 #         nit    =  number of iterations to perform
 # Returns: cX1  =  best-fitting xpos (km) for first cluster centroid
