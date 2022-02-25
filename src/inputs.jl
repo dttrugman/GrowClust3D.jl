@@ -69,22 +69,29 @@ function read_gcinp(inpfile)
             elseif counter == 12
                 data = split(sline)
                 if inpD["ttabsrc"] == "trace"
-                    inpD["tt_dep0"] = parse(Float64,data[1])
-                    inpD["tt_dep1"] = parse(Float64,data[2])
-                    inpD["tt_ddep"] = parse(Float64,data[3])
+                    inpD["tt_zmin"] = parse(Float64,data[1])
+                    inpD["tt_zmax"] = parse(Float64,data[2])
+                    inpD["tt_zstep"] = parse(Float64,data[3])
                 elseif inpD["ttabsrc"] == "nllgrid"
-                    inpD["tt_dep0"] = parse(Float64,data[1])
-                    inpD["tt_dep1"] = parse(Float64,data[2])
+                    inpD["tt_zmin"] = parse(Float64,data[1])
+                    inpD["tt_zmax"] = parse(Float64,data[2])
                 end
             elseif counter == 13
                 data = split(sline)
                 if inpD["ttabsrc"] == "trace"
-                    inpD["tt_del0"] = parse(Float64,data[1])
-                    inpD["tt_del1"] = parse(Float64,data[2])
-                    inpD["tt_ddel"] = parse(Float64,data[3])
+                    inpD["tt_xmin"] = parse(Float64,data[1])
+                    inpD["tt_xmax"] = parse(Float64,data[2])
+                    inpD["tt_xstep"] = parse(Float64,data[3])
                 elseif inpD["ttabsrc"] == "nllgrid"
-                    inpD["tt_del0"] = parse(Float64,data[1])
-                    inpD["tt_del1"] = parse(Float64,data[2])
+                    if length(data) == 2
+                        inpD["tt_xmin"] = parse(Float64,data[1])
+                        inpD["tt_xmax"] = parse(Float64,data[2])
+                    else
+                        inpD["tt_xmin"] = parse(Float64,data[1])
+                        inpD["tt_xmax"] = parse(Float64,data[2])
+                        inpD["tt_ymin"] = parse(Float64,data[3])
+                        inpD["tt_ymax"] = parse(Float64,data[4])
+                    end
                 end
             elseif counter == 14
                 data = split(sline)
@@ -149,20 +156,6 @@ function check_gcinp(inpD)
         println("vpvs_factor") 
         input_ok = false
     end
-
-    # check travel-time table: dep and del
-    #if ((inpD["tt_dep0"] < 0.0) | (
-    if (inpD["tt_dep1"] < inpD["tt_dep0"]) 
-        println( "Input error: travel time depth grid:")
-        println("min=",inpD["tt_dep0"], ", max=", inpD["tt_dep1"])
-        input_ok = false
-    end
-    if ((inpD["tt_del0"] < 0.0) | (inpD["tt_del1"] < inpD["tt_del0"])) 
-        println("Input error, travel time distance grid bounds:")
-        println("min=",inpD["tt_del0"], ", max=", inpD["tt_del1"])
-        input_ok = false
-    end
-
     
     # check for travel time table source and related params
     if inpD["ttabsrc"] == "trace" # ray tracing
