@@ -44,10 +44,10 @@ tmerc -119.690000 39.665000
 ******************************************
 * vpvs_factor
   1.732             
-* tt_dep0  tt_dep1
-   0.0        26.0 
-* tt_del0  tt_del1
-   0.0        200.0
+* tt_zmin  tt_zmax
+   -2.0        28.0 
+* tt_xmin  tt_xmax
+    0.0        200.0
 *
 ******************************************
 ***** GrowClust Algorithm Parameters *****

@@ -189,8 +189,8 @@ function make_nll_interp(grdfile,params)
             data = data[idxY:jdxY,idxZ:jdxZ] # slice data matrix
         else # X, Y, Z
             xmin, xmax = params["xbounds"]
-            idxY = findfirst(x->x>=xmin,xs)
-            xmin = xs[idxY] # first on-grid point
+            idxX = findfirst(x->x>=xmin,xs)
+            xmin = xs[idxX] # first on-grid point
             ymin, ymax = params["ybounds"]
             idxY = findfirst(x->x>=ymin,ys)
             ymin = ys[idxY] # first on-grid point

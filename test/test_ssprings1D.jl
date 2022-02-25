@@ -78,7 +78,7 @@ if inpD["ttabsrc"] == "trace" # only needed for ray tracing
     end
 
     # interpolation spacing
-    inpD["itp_dz"] = inpD["tt_ddep"]
+    inpD["itp_dz"] = inpD["tt_zstep"]
 end
 
 
@@ -132,10 +132,6 @@ println("> Travel time source: ", inpD["ttabsrc"])
 println("> Velocity/Grid model: ", inpD["fin_vzmdl"])
 println("Travel time grid directory: ",inpD["fdir_ttab"])
 @printf("Projection: %s %.6f %.6f\n",inpD["proj"],inpD["lon0"],inpD["lat0"])
-print("Travel-time table depths (min, max): ")
-@printf("%.2f %.2f\n",inpD["tt_dep0"],inpD["tt_dep1"])
-print("Travel-time table ranges (min, max): ")
-@printf("%.2f %.2f\n",inpD["tt_del0"],inpD["tt_del1"])
 @printf("GrowClust parameters:\n")
 @printf("> rmin, delmax, rmsmax: %.3f %.1f %.3f\n",
     inpD["rmin"],inpD["delmax"],inpD["rmsmax"])
@@ -298,8 +294,8 @@ if inpD["ttabsrc"] == "trace"
     println("\nRay tracing to assemble travel time tables:")
 
     # define grids
-    qdeptab = collect(range(inpD["tt_dep0"],inpD["tt_dep1"],step=inpD["tt_ddep"]))
-    sdeltab = collect(range(inpD["tt_del0"],inpD["tt_del1"],step=inpD["tt_ddel"]))
+    qdeptab = collect(range(inpD["tt_zmin"],inpD["tt_zmax"],step=inpD["tt_zstep"]))
+    sdeltab = collect(range(inpD["tt_xmin"],inpD["tt_xmax"],step=inpD["tt_xstep"]))
 
     # store all tables here
     ttLIST = [] # stations for P, then stations for S
@@ -399,8 +395,8 @@ elseif inpD["ttabsrc"] == "nllgrid"
             
             # update header
             grdparams["interp_mode"] = "linear"
-            grdparams["xbounds"] = [inpD["tt_del0"],inpD["tt_del1"]]
-            grdparams["zbounds"] = [inpD["tt_dep0"],inpD["tt_dep1"]]
+            grdparams["xbounds"] = [inpD["tt_xmin"],inpD["tt_xmax"]]
+            grdparams["zbounds"] = [inpD["tt_zmin"],inpD["tt_zmax"]]
             grdparams["shallowmode"] = shallowmode
 
             # get interpolator
@@ -428,10 +424,10 @@ end
 
 # find valid distances
 println("\nChecking maximum allowable distance for ray tracing.")
-maxdistTT = inpD["tt_del1"]
-test_dists = collect(range(inpD["tt_del0"],inpD["tt_del1"],step=0.1))
-dep1 = max(inpD["tt_dep0"],floor(minimum(qdf[!,"qdep"])))
-dep2 = min(inpD["tt_dep1"],ceil(maximum(qdf[!,"qdep"])))
+maxdistTT = inpD["tt_xmax"]
+test_dists = collect(range(inpD["tt_xmin"],inpD["tt_xmax"],step=0.1))
+dep1 = max(inpD["tt_zmin"],floor(minimum(qdf[!,"qdep"])))
+dep2 = min(inpD["tt_zmax"],ceil(maximum(qdf[!,"qdep"])))
 for test_depth in range(dep1,dep2,step=1.0)
     ttP = pTT(test_dists,test_depth)
     ttS = sTT(test_dists,test_depth)
@@ -471,10 +467,10 @@ const max_qdep = maximum(qdf.qdep)
 @printf("min and max event depth: %.3fkm %.3fkm\n",min_qdep,max_qdep)
 
 # print table depths
-@printf("min and max table depth: %.3fkm %.3fkm\n",inpD["tt_dep0"],inpD["tt_dep1"])
+@printf("min and max table depth: %.3fkm %.3fkm\n",inpD["tt_zmin"],inpD["tt_zmax"])
 
 # implement warnings and checks
-if (min_qdep < inpD["tt_dep0"])
+if (min_qdep < inpD["tt_zmin"])
     println("WARNING: min event depth < min table depth")
 end
 if (inpD["ttabsrc"]=="trace")
@@ -484,7 +480,7 @@ if (inpD["ttabsrc"]=="trace")
         #exit() # allow this, but warn user (should be ok if depth is near 0)
     end
 end
-if (max_qdep > inpD["tt_dep1"]) # note tt_dep1 is >= vzmax
+if (max_qdep > inpD["tt_zmax"]) # note tt_zmax is >= vzmax
     println("ERROR: max event depth > max table / velocity model depth")
     exit()
 end
@@ -503,14 +499,14 @@ if nbad > 0
     exit()
 end
 println("Max station distance: ",maximum(xdf.sdist))
-nbad = sum(xdf.sdist.>inpD["tt_del1"])
+nbad = sum(xdf.sdist.>inpD["tt_xmax"])
 if nbad > 0
     println("Error: bad input xcor data, stations further than travel time table allows")
     println("Fix input xcor file or adjust travel time table parameter at top of script.")
-    ibad = xdf.sdist.>inpD["tt_del1"]
+    ibad = xdf.sdist.>inpD["tt_xmax"]
     show(xdf[ibad,:])
     exit()
-elseif maxdistTT < inpD["tt_del1"]
+elseif maxdistTT < inpD["tt_xmax"]
     nbad = sum(xdf.sdist.>maxdistTT)
     if nbad > 0
         println("Error: bad input xcor data, stations further than allowed by ray tracing.")

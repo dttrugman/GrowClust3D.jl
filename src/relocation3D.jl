@@ -87,12 +87,10 @@ for it=1:nit
                 fZ1 = qZ0 + dZ0 + dZ*iz  # centroid + shift + trial offset
                 fZ2 = qZ0 - dZ0 - dZ*iz # centroid - shift - trial offset
                 
-                # compute predicted travel time and residuals w/observed
-                sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
-                sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
+                # compute predicted travel time and residuals w/observed           
                 @inbounds for ii=1:npick
-                    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1))
-                    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2))
+                    tt1 = Float32(ttTABs[itab[ii]](qX1[ii]+fX1,qY1[ii]+fY1,qZ1[ii]+fZ1))
+                    tt2 = Float32(ttTABs[itab[ii]](qX2[ii]+fX2,qY2[ii]+fY2,qZ2[ii]+fZ2))
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -143,11 +141,9 @@ resol = dY/(2.0/3.0)
 cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
                 
 # compute residual between observed and predicted travel time
-sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
-sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii]))
-    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii]))
+    tt1 = Float32(ttTABs[itab[ii]](cX1+qX1[ii],cY1+qY1[ii],cZ1+qZ1[ii]))
+    tt2 = Float32(ttTABs[itab[ii]](cX2+qX2[ii],cY2+qY2[ii],cZ2+qZ2[ii]))
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -210,12 +206,10 @@ for it=1:nit
                 fZ1 = qZ0 + dZ0 + dZ*iz  # centroid + shift + trial offset
                 fZ2 = qZ0 - dZ0 - dZ*iz # centroid - shift - trial offset
                 
-                # compute predicted travel time and residuals w/observed
-                sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
-                sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
+                # compute predicted travel time and residuals w/observed             
                 @inbounds for ii=1:npick
-                    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1))
-                    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2))
+                    tt1 = Float32(ttTABs[itab[ii]](qX1[ii]+fX1,qY1[ii]+fY1,qZ1[ii]+fZ1))
+                    tt2 = Float32(ttTABs[itab[ii]](qX2[ii]+fX2,qY2[ii]+fY2,qZ2[ii]+fZ2))
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -266,11 +260,9 @@ resol = dY/(2.0/3.0)
 cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
                 
 # compute residual between observed and predicted travel time
-sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
-sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii]))
-    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii]))
+    tt1 = Float32(ttTABs[itab[ii]](cX1+qX1[ii],cY1+qY1[ii],cZ1+qZ1[ii]))
+    tt2 = Float32(ttTABs[itab[ii]](cX2+qX2[ii],cY2+qY2[ii],cZ2+qZ2[ii]))
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -333,12 +325,10 @@ for it=1:nit
                 fZ1 = qZ0 + dZ0 + dZ*iz  # centroid + shift + trial offset
                 fZ2 = qZ0 - dZ0 - dZ*iz # centroid - shift - trial offset
                 
-                # compute predicted travel time and residuals w/observed
-                sdist1 = xydist(qX1.+fX1,qY1.+fY1,sX,sY)
-                sdist2 = xydist(qX2.+fX2,qY2.+fY2,sX,sY)                
+                # compute predicted travel time and residuals w/observed          
                 @inbounds for ii=1:npick
-                    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],qZ1[ii]+fZ1))
-                    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],qZ2[ii]+fZ2))
+                    tt1 = Float32(ttTABs[itab[ii]](qX1[ii]+fX1,qY1[ii]+fY1,qZ1[ii]+fZ1))
+                    tt2 = Float32(ttTABs[itab[ii]](qX2[ii]+fX2,qY2[ii]+fY2,qZ2[ii]+fZ2))
                     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
                     resid[ii] = tdif[ii] - pdif # accounts for otime adjustment
                 end
@@ -388,11 +378,9 @@ resol = dY/(2.0/3.0)
 cdist = sqrt((cX2-cX1)^2 + (cY2-cY1)^2 + (cZ2-cZ1)^2)
                 
 # compute residual between observed and predicted travel time
-sdist1 = xydist(cX1.+qX1,cY1.+qY1,sX,sY)
-sdist2 = xydist(cX2.+qX2,cY2.+qY2,sX,sY)
 @inbounds for ii=1:npick
-    tt1 = Float32(ttTABs[itab[ii]](sdist1[ii],cZ1+qZ1[ii]))
-    tt2 = Float32(ttTABs[itab[ii]](sdist2[ii],cZ2+qZ2[ii]))
+    tt1 = Float32(ttTABs[itab[ii]](cX1+qX1[ii],cY1+qY1[ii],cZ1+qZ1[ii]))
+    tt2 = Float32(ttTABs[itab[ii]](cX2+qX2[ii],cY2+qY2[ii],cZ2+qZ2[ii]))
     pdif = (tt2 + qT2[ii]) - (tt1 + qT1[ii])
     resid[ii] = tdif[ii] - pdif - torgdif
 end
@@ -426,7 +414,7 @@ end
 # - brcids, bnb: cluster ids and number of events in each cluster 
 #
 # function with i32 ixx arrays
-function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int32},ixx2::Vector{Int32},
+function clustertree_3D(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int32},ixx2::Vector{Int32},
     tdif::Vector{Float32},itab::Vector{Int16},
     qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
     nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float32,rmedmax::Float32,
@@ -519,7 +507,7 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     dqZ1, dqorg1 = zeros(npick),zeros(Float32,npick)
     dqX2, dqY2 = zeros(npick),zeros(npick)
     dqZ2, dqorg2 = zeros(npick),zeros(Float32,npick)
-    tab21, sX21, sY21 = zeros(Int16,npick), zeros(npick), zeros(npick)
+    tab21 = zeros(Int16,npick)
     tdif21 = zeros(Float32,npick)
     ix1 = 1 # start index for event pair in the arrays above
     @inbounds for jj in linx
@@ -546,8 +534,6 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
             dqorg2[ix1:ix2] .= brorgs[pix1]-btorgs[qc2]
             tdif21[ix1:ix2] .= -tdif[jx1:jx2] # flip the tdif
         end
-        sX21[ix1:ix2] .= sX[jx1:jx2] # stays same
-        sY21[ix1:ix2] .= sY[jx1:jx2] # stays same
         tab21[ix1:ix2] .= itab[jx1:jx2] # stays same
         ix1 = ix2 + 1 # update start index in npick array
     end
@@ -560,21 +546,24 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     # run difclust (relocation norms 1, 2, 3)
     if irelonorm == 1
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
-        cdist, torgdif, resid, rms, rmed, resol = difclust1(
-        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
-        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        cdist, torgdif, resid, rms, rmed, resol = difclust1_3D(
+        cX0,cY0,cZ0,tdif21,tab21, 
+        dqX1, dqY1, dqZ1, dqorg1,
+        dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     elseif irelonorm == 2
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
-        cdist, torgdif, resid, rms, rmed, resol = difclust2(
-        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
-        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        cdist, torgdif, resid, rms, rmed, resol = difclust2_3D(
+        cX0,cY0,cZ0,tdif21,tab21,
+        dqX1, dqY1, dqZ1, dqorg1, 
+        dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     else
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
-        cdist, torgdif, resid, rms, rmed, resol = difclust3(
-        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
-        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        cdist, torgdif, resid, rms, rmed, resol = difclust3_3D(
+        cX0,cY0,cZ0,tdif21,tab21,
+        dqX1, dqY1, dqZ1, dqorg1,
+        dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     end
 
@@ -698,8 +687,8 @@ end
 ##################
 
 ####### function with i64 ixx arrays
-function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int64},ixx2::Vector{Int64},
-    tdif::Vector{Float32},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
+function clustertree_3D(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int64},ixx2::Vector{Int64},
+    tdif::Vector{Float32},itab::Vector{Int16},
     qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
     nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float32,rmedmax::Float32,
     distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float32,
@@ -791,7 +780,7 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     dqZ1, dqorg1 = zeros(npick),zeros(Float32,npick)
     dqX2, dqY2 = zeros(npick),zeros(npick)
     dqZ2, dqorg2 = zeros(npick),zeros(Float32,npick)
-    tab21, sX21, sY21 = zeros(Int16,npick), zeros(npick), zeros(npick)
+    tab21 = zeros(Int16,npick)
     tdif21 = zeros(Float32,npick)
     ix1 = 1 # start index for event pair in the arrays above
     @inbounds for jj in linx
@@ -818,8 +807,6 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
             dqorg2[ix1:ix2] .= brorgs[pix1]-btorgs[qc2]
             tdif21[ix1:ix2] .= -tdif[jx1:jx2] # flip the tdif
         end
-        sX21[ix1:ix2] .= sX[jx1:jx2] # stays same
-        sY21[ix1:ix2] .= sY[jx1:jx2] # stays same
         tab21[ix1:ix2] .= itab[jx1:jx2] # stays same
         ix1 = ix2 + 1 # update start index in npick array
     end
@@ -832,21 +819,24 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     # run difclust (relocation norms 1, 2, 3)
     if irelonorm == 1
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
-        cdist, torgdif, resid, rms, rmed, resol = difclust1(
-        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
-        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        cdist, torgdif, resid, rms, rmed, resol = difclust1_3D(
+        cX0,cY0,cZ0,tdif21,tab21,
+        dqX1, dqY1, dqZ1, dqorg1,
+        dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     elseif irelonorm == 2
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
-        cdist, torgdif, resid, rms, rmed, resol = difclust2(
-        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
-        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        cdist, torgdif, resid, rms, rmed, resol = difclust2_3D(
+        cX0,cY0,cZ0,tdif21,tab21,
+        dqX1, dqY1, dqZ1, dqorg1,
+        dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     else
         cX1, cY1, cZ1, cX2, cY2, cZ2, 
-        cdist, torgdif, resid, rms, rmed, resol = difclust3(
-        cX0,cY0,cZ0,tdif21,tab21, sX21, sY21,
-        dqX1, dqY1, dqZ1, dqorg1, dqX2, dqY2, dqZ2, dqorg2,
+        cdist, torgdif, resid, rms, rmed, resol = difclust3_3D(
+        cX0,cY0,cZ0,tdif21,tab21,
+        dqX1, dqY1, dqZ1, dqorg1,
+        dqX2, dqY2, dqZ2, dqorg2,
         ttTABs,boxwid,nit)
     end
 

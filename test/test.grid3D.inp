@@ -9,7 +9,7 @@
 * evlist_fmt (1 = phase, 2 = GrowClust, 3 = HypoInverse)
 1
 * fin_evlist (event list file name)
-data/in/evlist.txt
+data/evlist.txt
 *
 *******************************************
 ************   Station list   *************
@@ -17,7 +17,7 @@ data/in/evlist.txt
 * stlist_fmt (1 = station name)
 1
 * fin_stlist (station list file name)
-data/in/stlist.txt
+data/stlist.txt
 *
 *******************************************
 *************   XCOR data   ***************
@@ -25,28 +25,29 @@ data/in/stlist.txt
 * xcordat_fmt (1 = text), tdif_fmt (21 = tt2-tt1, 12 = tt1-tt2)
 1  12
 * fin_xcordat
-data/in/xcordata.txt
+data/xcordata.txt
 *
 *******************************************
 *** Velocity Model / Travel Time Tables ***
 *******************************************
 * ttabsrc: travel time table source ("trace" or "nllgrid")
-trace
+nllgrid
 * fin_vzmdl (model name)
-data/in/vzmodel.txt
+g2t
 * fdir_ttab (directory for travel time tables/grids or NONE)
-data/tt/
+nll-grd3/
 * projection (name, lon0, lat0, [latP1, latP2])
 tmerc -119.690000 39.665000
+*
 ******************************************
 ***** Travel Time Table Parameters  ******
 ******************************************
-* vpvs_factor  rayparam_min (-1 = default)
-  1.732             -1
-* tt_zmin  tt_zmax  tt_zstep
-  -2.0        28.0       1.0
-* tt_xmin  tt_xmax  tt_xstep
-   0.0        200.0      2.0
+* vpvs_factor
+  1.732             
+* tt_zmin  tt_zmax
+   -2.0       28.0 
+* tt_xmin tt_xmax tt_ymin tt_ymax
+-100.0  100.0 -100.0 100.0
 *
 ******************************************
 ***** GrowClust Algorithm Parameters *****
@@ -60,14 +61,14 @@ tmerc -119.690000 39.665000
 ************ Output files ****************
 ******************************************
 * nboot  nbranch_min
-   100         2
+   0         2
 * fout_cat (relocated catalog)
-data/out/out.multithread.growclust_cat
+NONE
 * fout_clust (relocated cluster file)
-data/out/out.multithread.growclust_clust
+NONE
 * fout_log (program log)
-data/out/out.multithread.growclust_log
+NONE
 * fout_boot (bootstrap distribution)
-data/out/out.multithread.growclust_boot
+NONE
 ******************************************
 ******************************************

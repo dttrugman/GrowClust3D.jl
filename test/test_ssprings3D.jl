@@ -21,7 +21,7 @@ const hshiftmax = 2.0        # maximum permitted horizontal cluster shifts (km)
 const vshiftmax = 2.0        # maximum permitted vertical cluster shifts (km)
 const rmedmax = Float32(0.05)         # maximum median absolute tdif residual to join clusters
 const maxlink = 10           # use 10 best event pairs to relocate (optimize later...)
-const nupdate = 10000         # update progress every nupdate pairs - NEW
+const nupdate = 1000         # update progress every nupdate pairs - NEW
    
 # ------- Relative Relocation subroutine parameters -------------
 const boxwid = 3. # initial "shrinking-box" width (km)
@@ -44,7 +44,6 @@ const shallowmode = "flat" # option for how to treat shallow seismicity for 1D r
                        # throw makes an error for negative depths
                        # linear does linear interpolation to negative depths
                        # reflect treats negative depths as equivalent to -depth
-const ttabmode = "bystation" # travel time table mode ("bystation" or "byphase") - only for ray trace
 
 # ------- Geodetic parameters -------------
 const degkm = 111.1949266 # for simple degree / km conversion
@@ -54,7 +53,7 @@ const rellipse = "WGS84" # reference ellipse for Proj4 (e.g. "WGS84")
 ### Read Input File
 
 # read input file
-println("\nReading input file: ",ARGS[1])
+println("\nReading input file: ")
 infile_ctl = ARGS[1]
 inpD = read_gcinp(infile_ctl)
 
@@ -231,141 +230,21 @@ usta = unique(xdf[!,"sta"])
 nstaU = length(usta)
 println("$nstaU unique stations used:\n",usta,"\n")
 xdf[!,:itab] .= Int16(0)
-if (ttabmode == "byphase") & (inpD["ttabsrc"] == "trace") # one per phase
-    xdf[!,:itab] .= convert.(Int16,xdf[!,:iphase]) # convert to Int16 for compatibility
-    ntab = 2
-else # one per station otherwise
-    staIDX = Dict(zip(usta,1:length(usta)))
-    for ii = 1:nrow(xdf) # table index: first nstaU are for P-waves, next are for S-waves
-        xdf[ii,:itab] = staIDX[xdf[ii,:sta]] + nstaU*(xdf[ii,:iphase]-1)
-    end
-    ntab = 2*nstaU
+staIDX = Dict(zip(usta,1:length(usta)))
+for ii = 1:nrow(xdf) # table index: first nstaU are for P-waves, next are for S-waves
+    xdf[ii,:itab] = staIDX[xdf[ii,:sta]] + nstaU*(xdf[ii,:iphase]-1)
 end
+ntab = 2*nstaU
 println("Updated with table index:")
 show(xdf[!,[:qix1,:qix2,:sta,:tdif,:rxcor,:iphase,:itab]])
 
 ###
 
 ###### Ray-Tracing Section ##########
-if inpD["ttabsrc"] == "trace"
 
-    ### Read in velocity model
-    println("\nReading velocity model..")
-    # read in
-    z_s0, alpha_s0, beta_s0 = read_vzmodel(
-        inpD["fin_vzmdl"],vpvs=inpD["vpvs_factor"])
-    for ii in 1:length(z_s0) # print out
-        @printf("%5.2fkm: %6.4f %6.4f\n",z_s0[ii],alpha_s0[ii],beta_s0[ii])
-    end
-
-    ### Find Moho depth in model, print results
-    println("\nMoho depths:")
-    imoho = find_moho(z_s0,alpha_s0)
-    @printf("%.2f %.3f %.3f\n",
-        z_s0[imoho], alpha_s0[imoho], beta_s0[imoho])
-    println("Moho slownesses:")
-    @printf("%.4f %.4f\n",1.0/alpha_s0[imoho], 1.0/beta_s0[imoho])
-
-    # update minimum ray parameter
-    if inpD["rayparam_min"] < 0.0
-        inpD["plongcutP"] = 1.0/alpha_s0[imoho]
-        inpD["plongcutS"] = 1.0/beta_s0[imoho]
-    end
-
-    ### Interpolate VZ Model to finer grid
-    println("\nInterpolation:") # interpolate
-    z_s, alpha_s, beta_s = interp_vzmodel(
-        z_s0, alpha_s0, beta_s0; itp_dz=inpD["itp_dz"], ztop=-max_selev)
-    for ii in 1:length(z_s) # print out
-        @printf("%5.2fkm: %6.4f %6.4f\n",z_s[ii],alpha_s[ii],beta_s[ii])
-    end
-
-    ### Run Earth-flattening Codes
-    z, alpha = eflatten(z_s, alpha_s, erad=erad)
-    z, beta = eflatten(z_s, beta_s, erad=erad)
-
-    ### Define slowness arrays
-    npts = length(z_s)
-    slow = zeros(Float64,npts,2)
-    slow[:,1] .= 1.0./alpha
-    slow[:,2] .= ifelse.(beta.>0.0,1.0./beta,1.0./alpha)
-
-    ### Main Ray Tracing Loop
-    println("\nRay tracing to assemble travel time tables:")
-
-    # define grids
-    qdeptab = collect(range(inpD["tt_zmin"],inpD["tt_zmax"],step=inpD["tt_zstep"]))
-    sdeltab = collect(range(inpD["tt_xmin"],inpD["tt_xmax"],step=inpD["tt_xstep"]))
-
-    # store all tables here
-    ttLIST = [] # stations for P, then stations for S
-    phases = ["P","S"] # make P and S tables
-    plongcuts = [inpD["plongcutP"],inpD["plongcutS"]] # cutoffs
-
-    # loop over phases
-    println("STARTING RAY TRACING:")
-    total_time = @elapsed for (iphase, phase) in enumerate(phases)
-
-        # Print results
-        println("Working on Phase $phase\n:")
-
-        # loop over stations 
-        for ista = 1:Int64(ntab/2)
-
-            # get station depth (negative of elevation)
-            if ttabmode =="bystation"
-                sta = usta[ista] # station name
-                zstart = -sta2elev[sta] # elevation
-                println("Working on phase $phase station $sta: depth $zstart km")
-                ttabfile = @sprintf("tt.%s.%sg",sta,lowercase(phase))
-            else
-                zstart = 0.0 # default is zero depth
-                ttabfile = @sprintf("tt.%sg",lowercase(phase))
-            end
-        
-            # Ray tracing: compute offset and travel time to different depths
-            ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W = trace_rays(
-                iphase,z_s,z,slow,qdeptab,inpD["itp_dz"],zstart)
-            
-            # Compute slowness at station elevation
-            isurf = findfirst(x->x>=zstart,z_s)
-            if (isurf==1)|(z_s[isurf]==zstart)
-                usurf=slow[isurf,iphase] # use slowness directly
-            else                         # simple linear interpolation   
-                usurf=slow[isurf-1,iphase] + (slow[isurf,iphase]-slow[isurf-1,iphase])*(
-                    zstart-z_s[isurf-1])/(z_s[isurf]-z_s[isurf-1])
-            end
-
-            # Make table of first arrivals and take of angles
-            TT, AA = first_arrivals(vzmodel_type, plongcuts[iphase], qdeptab, sdeltab, 
-                                usurf, zstart, ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W)
-
-            # define interpolant object and add it to list
-            iTT = make_smtrace_table(sdeltab,qdeptab,convert.(Float32,TT),shallowmode)
-            push!(ttLIST,iTT)
-
-            # optional output
-            if inpD["fdir_ttab"] != "NONE"
-                write_smtrace_table(inpD["fdir_ttab"] * ttabfile,inpD["fin_vzmdl"],iphase,vzmodel_type,
-                            TT,qdeptab, sdeltab,ptab,zstart)
-            end
-
-        end # end loop over stations
-        
-    end
-    
-    @printf("\nElapsed seconds: %.2f",total_time)
-    println()
-
-    # finalize travel time tables
-    const ttTABs = [deepcopy(xx) for xx in ttLIST] # static version
-    const pTT = ttTABs[1] # p-wave example
-    const sTT = ttTABs[Int64(ntab/2)+1] # s-wave example   
-
-###### End of Ray Tracing Section ########
 
 ######## Pre-computed NonLinLoc Grids ########
-elseif inpD["ttabsrc"] == "nllgrid"
+if inpD["ttabsrc"] == "nllgrid" # only valid option for 3D case
 
     # store all tables here
     ttLIST = [] # stations for P, then stations for S
@@ -396,6 +275,7 @@ elseif inpD["ttabsrc"] == "nllgrid"
             # update header
             grdparams["interp_mode"] = "linear"
             grdparams["xbounds"] = [inpD["tt_xmin"],inpD["tt_xmax"]]
+            grdparams["ybounds"] = [inpD["tt_ymin"],inpD["tt_ymax"]]
             grdparams["zbounds"] = [inpD["tt_zmin"],inpD["tt_zmax"]]
             grdparams["shallowmode"] = shallowmode
 
@@ -422,22 +302,6 @@ end
 
 ##### Robustness checks for Tables/Grids #####
 
-# find valid distances
-println("\nChecking maximum allowable distance for ray tracing.")
-maxdistTT = inpD["tt_del1"]
-test_dists = collect(range(inpD["tt_xmin"],inpD["tt_xmax"],step=0.1))
-dep1 = max(inpD["tt_zmin"],floor(minimum(qdf[!,"qdep"])))
-dep2 = min(inpD["tt_zmax"],ceil(maximum(qdf[!,"qdep"])))
-for test_depth in range(dep1,dep2,step=1.0)
-    ttP = pTT(test_dists,test_depth)
-    ttS = sTT(test_dists,test_depth)
-    inan = (isnan.(ttP)) .| (isnan.(ttS))
-    if sum(inan)>0
-        global maxdistTT=min(maxdistTT,test_dists[inan][1]-1.0)
-    end
-end
-println("Given travel time tables, maximum allowable distance: ",maxdistTT)
-
 # define test distances, depth
 println("Testing travel time interpolation (P and S waves):")
 test_dists = collect(range(0.0,60.0,step=5.0))
@@ -445,14 +309,14 @@ npts = length(test_dists)
 test_depth = 10.0
      
 # calculate travel times
-test_ttP = pTT(test_dists, test_depth)
-test_ttS = sTT(test_dists, test_depth)
+test_ttP = pTT.(test_dists, test_dists, test_depth)
+test_ttS = sTT.(test_dists, test_dists, test_depth)
 
 # print results
 println(typeof(test_ttP[1]), " ", typeof(test_ttS[1]))
 for ii in 1:npts     
-@printf("Distance: %4.0f, Depth: %3.0f",
-    test_dists[ii],test_depth)
+@printf("XY position: %4.0f %4.0f, Depth: %3.0f",
+    test_dists[ii],test_dists[ii],test_depth)
 @printf(" --> P and S travel times: %5.2f, %5.2f\n",
     test_ttP[ii],test_ttS[ii])
 end
@@ -467,18 +331,11 @@ const max_qdep = maximum(qdf.qdep)
 @printf("min and max event depth: %.3fkm %.3fkm\n",min_qdep,max_qdep)
 
 # print table depths
-@printf("min and max table depth: %.3fkm %.3fkm\n",inpD["tt_zmin"],inpD["tt_zmax"])
+@printf("min and max grid depth: %.3fkm %.3fkm\n",inpD["tt_zmin"],inpD["tt_zmax"])
 
 # implement warnings and checks
 if (min_qdep < inpD["tt_zmin"])
     println("WARNING: min event depth < min table depth")
-end
-if (inpD["ttabsrc"]=="trace")
-    if (min_qdep < z_s0[1]) # only checked for ray-trace
-        println("WARNING: min event depth < min vzmodel depth")
-        println("Results may be inaccurate near free-surface...")
-        #exit() # allow this, but warn user (should be ok if depth is near 0)
-    end
 end
 if (max_qdep > inpD["tt_zmax"]) # note tt_zmax is >= vzmax
     println("ERROR: max event depth > max table / velocity model depth")
@@ -499,22 +356,17 @@ if nbad > 0
     exit()
 end
 println("Max station distance: ",maximum(xdf.sdist))
-nbad = sum(xdf.sdist.>inpD["tt_xmax"])
+@printf("Grid bounds: %f %f %f %f\n",inpD["tt_xmin"],
+    inpD["tt_xmax"],inpD["tt_xmin"],inpD["tt_ymax"])
+maxgridX = max(abs(inpD["tt_xmin"]),inpD["tt_xmax"])
+maxgridY = max(abs(inpD["tt_ymin"]),inpD["tt_ymax"])
+nbad = sum(xdf.sdist.>max(maxgridX,maxgridY))
 if nbad > 0
     println("Error: bad input xcor data, stations further than travel time table allows")
     println("Fix input xcor file or adjust travel time table parameter at top of script.")
-    ibad = xdf.sdist.>inpD["tt_xmax"]
+    ibad = xdf.sdist.>max(maxgridX,maxgridY)
     show(xdf[ibad,:])
     exit()
-elseif maxdistTT < inpD["tt_xmax"]
-    nbad = sum(xdf.sdist.>maxdistTT)
-    if nbad > 0
-        println("Error: bad input xcor data, stations further than allowed by ray tracing.")
-        println("Given present configuration, rays cannot reach beyond a distance of $maxdistTT.")
-        ibad = xdf.sdist.>maxdistTT
-        show(xdf[ibad,:])
-        exit()
-    end 
 end
 println("Done.")
 
@@ -544,7 +396,7 @@ if inpD["nboot"] > 0
 end
 
 # base xcor dataframe to sample from
-xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:itab,:igood])
+xdf00 = select(xdf,[:qix1,:qix2,:tdif,:itab,:igood])
 xdf00[!,:gxcor] = ifelse.(xdf.igood.>0,xdf.rxcor,Float32(0.0)) # xcor with bad values zeroed
 #show(xdf00)
 
@@ -559,23 +411,16 @@ end
 
 
 #### loop over each bootstrapping iteration
-println("\n\n\nStarting relocation estimates, nthread=",Threads.nthreads())
-println("[Progress tracked on Thread 1 only.]")
-@time Threads.@threads for ib in 0:inpD["nboot"]     
-    
-    # log thread id
-    @printf("Thread %d: starting bootstrap iteration: %d/%d\n",
-            Threads.threadid(),ib,inpD["nboot"])
+println("\n\n\nStarting relocation estimates.")
+@time for ib in 0:inpD["nboot"]    
     
     # timer for this thread
     wc = @elapsed begin
     
     # bootstrapping: resample data before run
-    if Threads.threadid()==1
-        println("Thread 1: Initializing xcorr data and event pairs...")
-    end
     Random.seed!(iseed + ib) # different for each run
     wc2 = @elapsed begin
+    println("Initializing xcorr data and event pairs. Bootstrap iteration: $ib")
     if ib > 0 # sample with replacement from original xcorr array
         isamp = sort(sample(ixc,nxc,replace=true)) # sorted to keep evpairs together
         rxdf = xdf00[isamp,:]
@@ -591,7 +436,7 @@ println("[Progress tracked on Thread 1 only.]")
     end
 
     # compile event pair arrays
-    bpdf = combine(groupby(rxdf[!,Not([:sX4,:sY4,:itab,:tdif])],[:qix1,:qix2]),
+    bpdf = combine(groupby(rxdf[!,Not([:itab,:tdif])],[:qix1,:qix2]),
         :gxcor=>sum=>:rfactor,:ixx=>first=>:ix1,:ixx=>last=>:ix2,:igood=>sum=>:ngood)
     
     # sort pairs (note, resampled pairs may not have ngoodmin tdifs)
@@ -603,14 +448,12 @@ println("[Progress tracked on Thread 1 only.]")
     sort!(bpdf,:rfactor,rev=true) # so best pairs first
     #show(bpdf)
     end # ends elapsed time for setup
-    if Threads.threadid()==1
-        println("Thread 1: Done with initialization, elapsed time = $wc2")
-    end
+    println("\nDone, elapsed time = $wc2")
     
     # run clustering
-    brXs, brYs, brdeps, brorgs, brcids, bnb = clustertree(
+    brXs, brYs, brdeps, brorgs, brcids, bnb = clustertree_3D(
         bpdf.qix1, bpdf.qix2, bpdf.ix1, bpdf.ix2, 
-        rxdf.tdif, rxdf.sX4, rxdf.sY4, rxdf.itab,
+        rxdf.tdif, rxdf.itab,
         qdf.qX4, qdf.qY4, qdf.qdep,
         ttTABs, nit, boxwid, irelonorm,
         inpD["rmsmax"],rmedmax,distmax,distmax2,
@@ -642,9 +485,6 @@ println("[Progress tracked on Thread 1 only.]")
         
     # completion
     end # ends the wall clock
-    @printf("Thread %d: completed bootstrap iteration: %d/%d, wall clock = %.1fs.\n",
-        Threads.threadid(),ib,inpD["nboot"],wc)
-    println()
 
 end
 
@@ -723,7 +563,7 @@ println()
 println("\nComputing misfits...")
 
 # select columns
-resdf = select(xdf,[:qid1,:qid2,:tdif,:itab,:sX4,:sY4,:rxcor,:sdist])
+resdf = select(xdf,[:qid1,:qid2,:tdif,:itab,:rxcor,:sdist])
 
 # merge with event data, renaming columns to specify 1/2
 resdf = innerjoin(resdf,rdf[!,[:enum,:evid,:rX,:rY,:rdep,:rtim]],on=:qid1=>:evid)
@@ -735,16 +575,12 @@ DataFrames.rename!(resdf,:enum=>:qnum2,:rX=>:qX2,:rY=>:qY2,:rdep=>:qZ2,:rtim=>:q
 resdf = resdf[(rcids[resdf.qnum1] .== rcids[resdf.qnum2]) .& ( # only event pairs in same cluster
     resdf[!,:sdist].<=inpD["delmax"]).&(resdf[!,:rxcor].>=inpD["rmin"]),:]
 
-# compute individual source station distances
-sdist1 = xydist(resdf[!,:qX1],resdf[!,:qY1],resdf[!,:sX4],resdf[!,:sY4])
-sdist2 = xydist(resdf[!,:qX2],resdf[!,:qY2],resdf[!,:sX4],resdf[!,:sY4])
-
 # compute predicted travel times
 resdf[!,:pdif] .= 0.0
 for ii = 1:nrow(resdf)
-    resdf[ii,:pdif] = ttTABs[resdf[ii,:itab]](sdist2[ii],resdf[ii,:qZ2]) -
-        ttTABs[resdf[ii,:itab]](sdist1[ii],resdf[ii,:qZ1]) +
-        resdf[ii,:qtim2] - resdf[ii,:qtim1] # otime adjustment (add here or subtract from tdif)
+    resdf[ii,:pdif] = ttTABs[resdf[ii,:itab]](resdf[ii,:qX2],resdf[ii,:qY2],resdf[ii,:qZ2]) -
+        ttTABs[resdf[ii,:itab]](resdf[ii,:qX1],resdf[ii,:qY1],resdf[ii,:qZ1]) +
+        resdf[ii,:qtim2] - resdf[ii,:qtim1]
 end
 
 # P vs S
@@ -818,227 +654,57 @@ end
 qrmsP = ifelse.(qndiffP.>0,sqrt.(qsseP./qndiffP),NaN64)
 qrmsS = ifelse.(qndiffS.>0,sqrt.(qsseS./qndiffS),NaN64)
 
-### Compute bootstrap statistics ###
-
-# pre-allocate: defaults are NaN for errors, 0 for nb arrays
-boot_stdH, boot_madH = fill(NaN64,nq), fill(NaN64,nq)
-boot_stdZ, boot_madZ = fill(NaN64,nq), fill(NaN64,nq)
-boot_stdT, boot_madT = fill(NaN64,nq), fill(NaN64,nq)
-boot_nbL, boot_nbM, boot_nbH = zeros(Int64,nq), zeros(Float64,nq), zeros(Int64,nq)
-
-# loop over events
-if inpD["nboot"] > 1 # need to have run bootstrapping
-
-
-    println("\nComputing bootstrap statistics...")
-    for ii = 1:nq
-
-        # nbranch statistics
-        boot_nbL[ii] = minimum(bnbM[ii,:])
-        boot_nbM[ii] = mean(bnbM[ii,:])
-        boot_nbH[ii] = maximum(bnbM[ii,:])
-        
-        # only if relocated
-        if rdf[ii,:rnb]>1
-
-            # standard errors
-            xstd = degkm*cosd(rdf[ii,:rlat])*std(blonM[ii,:])
-            ystd = degkm*std(blatM[ii,:])
-            boot_stdH[ii]=sqrt(xstd^2+ystd^2)
-            boot_stdZ[ii]=std(bdepM[ii,:])
-            boot_stdT[ii]=std(borgM[ii,:])
-
-            # MAD statistics (no division by 1/quantile(Normal(), 3/4) ≈ 1.4826)
-            xmad = degkm*cosd(rdf[ii,:rlat])*mad(blonM[ii,:],normalize=false)
-            ymad = degkm*mad(blatM[ii,:],normalize=false)
-            boot_madH[ii]=sqrt(xmad^2+ymad^2)
-            boot_madZ[ii]=mad(bdepM[ii,:],normalize=false)
-            boot_madT[ii]=mad(borgM[ii,:],normalize=false)
-
-        end
-    end
-end
-        
-#########################################################
-
-### Write Output File: Catalog
-
-println("\nWriting output catalog: ", inpD["fout_cat"])
-
-# open output file
-fcat = open(inpD["fout_cat"],"w")
-
-# loop over events
-for ii = 1:nq
-    
-    # print out origin time, relocated position, magnitude
-    dateS = Dates.format(rdf[ii,:rot],"YYYY mm dd HH MM SS.sss")
-    @printf(fcat,"%s %9d %9.5f %10.5f %7.3f %5.2f ",
-        dateS,rdf[ii,:evid],rdf[ii,:rlat],rdf[ii,:rlon],
-        rdf[ii,:rdep],qdf[ii,:qmag])
-    
-    # print out cluster number and fits
-    @printf(fcat,"%7d %7d %7d %5d %5d %5d %5.2f %5.2f ",
-        rdf[ii,:enum],rdf[ii,:rcid],rdf[ii,:rnb],qnpair[ii],
-        qndiffP[ii],qndiffS[ii],qrmsP[ii],qrmsS[ii])
-    
-    # print out uncertanties and catalog locations
-    @printf(fcat,"%7.3f %7.3f %7.3f %9.5f %10.5f %7.3f\n",
-        boot_madH[ii],boot_madZ[ii],boot_madT[ii],
-        qdf[ii,:qlat],qdf[ii,:qlon],qdf[ii,:qdep])
-end
-
-# close file
-close(fcat)
-
-
-
-### Write Output File: Cluster
-
-if !(inpD["fout_clust"] in ["none","NONE"])
-
-    println("\nWriting output clusters")
-
-    # open output file
-    fcc = open(inpD["fout_clust"],"w")
-
-    # loop over all clusters to output (only makes sense for n>=2)
-    for cc in findall(tnbranch .>= min(2,inpD["nbranch_min"]))
-        
-        # write cluster info
-        @printf(fcc,"%8d %7d %9.5f %10.5f %7.3f %7.3f\n",
-            cc,tnbranch[cc],tlats[cc],tlons[cc],tdeps[cc],torgs[cc])
-        
-        # write info for all events
-        for ii in findall(rcids.==cc)
-        
-            # print out clustering, event info, mag, otime
-            dateS = Dates.format(rdf[ii,:rot],"YYYY mm dd HH MM SS.sss")
-            @printf(fcc,"%8d %8d %9d %5.2f %s ",cc,ii,rdf[ii,:evid],qdf[ii,:qmag],dateS)
-            
-            # print event location and position w/in cluster
-            qdx = degkm*(rdf[ii,:rlon]-tlons[cc])*cosd(tlats[cc])
-            qdy = degkm*(rdf[ii,:rlat]-tlats[cc])
-            qdz = rdf[ii,:rdep]-tdeps[cc]
-            @printf(fcc,"%9.5f %10.5f %7.3f %9.4f %9.4f %9.4f ",
-                rdf[ii,:rlat],rdf[ii,:rlon],rdf[ii,:rdep],qdx,qdy,qdz)
-
-            # print out uncertanties  and catalog locations
-            @printf(fcc,"%7.3f %7.3f %7.3f %9.5f %10.5f %7.3f\n",
-                boot_madH[ii],boot_madZ[ii],boot_madT[ii],
-                qdf[ii,:qlat],qdf[ii,:qlon],qdf[ii,:qdep])
-        end
-        
-    end
-
-
-    # close file 
-    close(fcc)
-
-end
-
-### Write Output File: Bootstrapping
-
-# only if requested
-if (inpD["nboot"] > 1)&(!(inpD["fout_boot"] in ["none","NONE"]))
-    
-    println("\nWriting output bootstrapping")
-    
-    # open file
-    fbb = open(inpD["fout_boot"],"w")
-    
-    # file header
-    @printf(fbb,"%8d %5d\n",nq,inpD["nboot"])
-    
-    
-    # loop over events
-    for ii = 1:nq
-        
-        # event header
-        @printf(fbb,"%8d %9d %9.5f %10.5f %7.3f ",
-            rdf[ii,:enum],rdf[ii,:evid],rdf[ii,:rlat],rdf[ii,:rlon],rdf[ii,:rdep])
-        @printf(fbb,"%7d %7d %6.2f %7d %7d %9.5f %10.5f %7.3f ",
-            rdf[ii,:rcid],rdf[ii,:rnb],boot_nbM[ii],boot_nbL[ii],boot_nbH[ii],
-            qdf[ii,:qlat],qdf[ii,:qlon],qdf[ii,:qdep])
-        @printf(fbb,"%7.3f %7.3f %7.3f %7.3f %7.3f %7.3f\n",
-            boot_madH[ii],boot_madZ[ii],boot_madT[ii],
-            boot_stdH[ii],boot_stdZ[ii],boot_stdT[ii])
-        
-        # report each bootstrap (f90 version reports CID but this is dumb?)
-        for ib = 1:inpD["nboot"]
-            @printf(fbb,"%9.5f %10.5f %7.3f %7d\n",
-                blatM[ii,ib],blonM[ii,ib],bdepM[ii,ib],bnbM[ii,ib])
-        end
-        
-    end
-    
-    # close file
-    close(fbb) 
-    
-end
-
-
-### Write Output File: Log / Statistics
-
-println("\nWriting run log")
-
-# open log file
-flog = open(inpD["fout_log"],"w")
+### Write Log / Statistics
+println("Done.\n\nRUN SUMMARY TO FOLLOW:\n")
 
 # Run Parameters
-@printf(flog,  "************************ Input files ************************\n")
-@printf(flog,  "     control file:   %s\n", infile_ctl)
-@printf(flog,  "       event list:   %s\n", inpD["fin_evlist"])
-@printf(flog,  "     station list:   %s\n", inpD["fin_stlist"])
-@printf(flog,  "     xcordat file:   %s\n", inpD["fin_xcordat"])
-@printf(flog,  "     velo/grd mdl:   %s\n", inpD["fin_vzmdl"])
-@printf(flog, "\n")
-@printf(flog,  "************************ Output files *************************\n")
-@printf(flog,  "     catalog file:   %s\n", inpD["fout_cat"])
-@printf(flog,  "     cluster file:   %s\n", inpD["fout_clust"])
-@printf(flog,  "         log file:   %s\n", inpD["fout_log"])
-@printf(flog,  "   bootstrap file:   %s\n", inpD["fout_boot"])
-@printf(flog, "\n")
-@printf(flog,  "****************** GROWCLUST Run Parameters *******************\n")
-@printf(flog, "%56s %6.2f\n", " (min rxcor value for evpair similarity coeff.): rmin =", inpD["rmin"])
-@printf(flog, "%56s %6.1f\n", " (max sta. dist for evpair similarity coeff.): delmax =", inpD["delmax"])
-@printf(flog, "%56s %6.2f\n", " (max rms residual to join clusters): rmsmax =", inpD["rmsmax"])
-@printf(flog, "%56s %6d\n" , " (num. bootstrap uncertainty iterations): nboot =", inpD["nboot"])
-@printf(flog, "\n")
-@printf(flog,  "****************** Auxiliary Run Parameters *******************\n")
-@printf(flog, "%56s %6.2f\n", " max catalog dist to join clusters: ", distmax)
-@printf(flog, "%56s %6.2f\n", " max relocated dist to join clusters: ", distmax2)
-@printf(flog, "%56s %6.2f\n", " max permitted horizontal cluster shifts: ", hshiftmax)
-@printf(flog, "%56s %6.2f\n", " max permitted vertical cluster shifts: ", vshiftmax)
-@printf(flog, "%56s %6.2f\n", " max median absolute residual to join clusters: ", rmedmax)  
-@printf(flog,  "***************************************************************\n")
+@printf("************************ Input files ************************\n")
+@printf("     control file:   %s\n", infile_ctl)
+@printf("       event list:   %s\n", inpD["fin_evlist"])
+@printf("     station list:   %s\n", inpD["fin_stlist"])
+@printf("     xcordat file:   %s\n", inpD["fin_xcordat"])
+@printf("     velocity mdl:   %s\n", inpD["fin_vzmdl"])
+@printf("\n")
+@printf("****************** GROWCLUST Run Parameters *******************\n")
+@printf("%56s %6.2f\n", " (min rxcor value for evpair similarity coeff.): rmin =", inpD["rmin"])
+@printf("%56s %6.1f\n", " (max sta. dist for evpair similarity coeff.): delmax =", inpD["delmax"])
+@printf("%56s %6.2f\n", " (max rms residual to join clusters): rmsmax =", inpD["rmsmax"])
+@printf("%56s %6d\n" , " (num. bootstrap uncertainty iterations): nboot =", inpD["nboot"])
+@printf("\n")
+@printf("****************** Auxiliary Run Parameters *******************\n")
+@printf("%56s %6.2f\n", " max catalog dist to join clusters: ", distmax)
+@printf("%56s %6.2f\n", " max relocated dist to join clusters: ", distmax2)
+@printf("%56s %6.2f\n", " max permitted horizontal cluster shifts: ", hshiftmax)
+@printf("%56s %6.2f\n", " max permitted vertical cluster shifts: ", vshiftmax)
+@printf("%56s %6.2f\n", " max median absolute residual to join clusters: ", rmedmax)  
+@printf("***************************************************************\n")
 
 
 # Run Summary with statistics
-@printf(flog, "\n")
-@printf(flog, "==================================================================\n")
-@printf(flog, "==================================================================\n")
-@printf(flog, "\n")
-@printf(flog, "********************  GROWCLUST Run Summary  *********************\n")
-#@printf(flog, "\n")
-@printf(flog, "%55s %10d\n", "Number of catalog events: ", nq)
-@printf(flog, "%55s %10d\n", "Number of relocated events: ", nreloc)
-@printf(flog, "%55s %10d\n", "Number of input event pairs: ", npair)
-@printf(flog, "%55s %10d\n", "Number of event pairs used: ", sum(qnpair)/2)
-@printf(flog, "%55s %10d\n", "Number of xcor data used (total, P+S): ", npp + nss)
-@printf(flog, "%55s %10d\n", "Number of xcor data used (P-phase): ", npp)
-@printf(flog, "%55s %10.4f\n", "RMS differential time residual (P-phase): ", rmsP)
-@printf(flog, "%55s %10.4f\n", "Mean (signed) differential time residual (P-phase): ", msresP)
-@printf(flog, "%55s %10d\n", "Number of xcor data used (S-phase): ", nss)
-@printf(flog, "%55s %10.4f\n", "RMS differential time residual (S-phase): ", rmsS)
-@printf(flog, "%55s %10.4f\n", "Mean (signed) differential time residual (S-phase): ", msresP)
-@printf(flog,  "\n")
-@printf(flog, "%55s %9d\n", "Number of clusters with >=   2 events: ", ntree2)
-@printf(flog, "%55s %9d\n", "Number of clusters with >=   5 events: ", ntree5)
-@printf(flog, "%55s %9d\n", "Number of clusters with >=  10 events: ", ntree10)
-@printf(flog, "%55s %9d\n", "Number of clusters with >=  20 events: ", ntree20)
-@printf(flog, "%55s %9d\n", "Number of clusters with >=  50 events: ", ntree50)
-@printf(flog, "%55s %9d\n", "Number of clusters with >= 100 events: ", ntree100)
+@printf( "\n")
+@printf( "==================================================================\n")
+@printf( "==================================================================\n")
+@printf( "\n")
+@printf( "********************  GROWCLUST Run Summary  *********************\n")
+#@printf( "\n")
+@printf( "%55s %10d\n", "Number of catalog events: ", nq)
+@printf( "%55s %10d\n", "Number of relocated events: ", nreloc)
+@printf( "%55s %10d\n", "Number of input event pairs: ", npair)
+@printf( "%55s %10d\n", "Number of event pairs used: ", sum(qnpair)/2)
+@printf( "%55s %10d\n", "Number of xcor data used (total, P+S): ", npp + nss)
+@printf( "%55s %10d\n", "Number of xcor data used (P-phase): ", npp)
+@printf( "%55s %10.4f\n", "RMS differential time residual (P-phase): ", rmsP)
+@printf( "%55s %10.4f\n", "Mean (signed) differential time residual (P-phase): ", msresP)
+@printf( "%55s %10d\n", "Number of xcor data used (S-phase): ", nss)
+@printf( "%55s %10.4f\n", "RMS differential time residual (S-phase): ", rmsS)
+@printf( "%55s %10.4f\n", "Mean (signed) differential time residual (S-phase): ", msresP)
+@printf(  "\n")
+@printf( "%55s %9d\n", "Number of clusters with >=   2 events: ", ntree2)
+@printf( "%55s %9d\n", "Number of clusters with >=   5 events: ", ntree5)
+@printf( "%55s %9d\n", "Number of clusters with >=  10 events: ", ntree10)
+@printf( "%55s %9d\n", "Number of clusters with >=  20 events: ", ntree20)
+@printf( "%55s %9d\n", "Number of clusters with >=  50 events: ", ntree50)
+@printf( "%55s %9d\n", "Number of clusters with >= 100 events: ", ntree100)
    
-# close this
-close(flog)
+### Done
+println("\n\nDONE")
