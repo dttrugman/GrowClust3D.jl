@@ -224,6 +224,14 @@ println("\nReading xcor data") # in projected coordinates
 @time xdf = read_xcordata_proj(inpD,qdf[!,[:qix,:qid,:qX4,:qY4]],sdf[!,[:sta,:sX4,:sY4]])
 show(xdf)
 println()
+nbad = sum(abs.(xdf.tdif).>tdifmax)
+if nbad > 0 # validate differential times
+    println("Error: bad input differential times, some larger than tdifmax=$tdifmax")
+    println("Fix input file or adjust tdifmax parameter.")
+    ibad = abs.(xdf.tdif).>tdifmax
+    show(xdf[ibad,:])
+    exit()
+end
 
 ### Gather Unique Station/Phase combos
 usta = unique(xdf[!,"sta"])
@@ -237,14 +245,22 @@ end
 ntab = 2*nstaU
 println("Updated with table index:")
 show(xdf[!,[:qix1,:qix2,:sta,:tdif,:rxcor,:iphase,:itab]])
+println()
 
-###
+### Subset station list to get min/max values
+subset!(sdf, :sta => ByRow(x -> x in usta))
+minSX, maxSX = minimum(sdf.sX4), maximum(sdf.sX4)
+minSY, maxSY = minimum(sdf.sY4), maximum(sdf.sY4)
+minSR, maxSR = minimum(xdf.sdist), maximum(xdf.sdist)
+@printf("min and max staX: %.4f %.4f\n", minSX, maxSX)
+@printf("min and max staY: %.4f %.4f\n", minSY, maxSY)
+@printf("min and max staR: %.4f %.4f\n", minSR, maxSR)
 
 ###### Ray-Tracing Section ##########
 
 
 ######## Pre-computed NonLinLoc Grids ########
-if inpD["ttabsrc"] == "nllgrid" # only valid option for 3D case
+if inpD["ttabsrc"] == "nllgrid"
 
     # store all tables here
     ttLIST = [] # stations for P, then stations for S
@@ -271,11 +287,38 @@ if inpD["ttabsrc"] == "nllgrid" # only valid option for 3D case
                 println("ERROR: PROJECTION MISMATCH: $fname")
                 exit()
             end
+
+            # check bounds
+            if grdparams["gtype"] == "TIME2D"
+                gmaxR = grdparams["yORG"] + grdparams["dY"]*Float64(grdparams["nY"]-1)
+                if gmaxR < maxSR
+                    println("ERROR: maximum station distance too large for grid!")
+                    println("max station distance: $maxSR, max grid distance: $gmaxR")
+                    exit()
+                end
+            else
+                gminX = grdparams["xORG"]
+                gmaxX = grdparams["xORG"] + grdparams["dX"]*Float64(grdparams["nX"]-1)
+                gminY = grdparams["yORG"]
+                gmaxY = grdparams["yORG"] + grdparams["dY"]*Float64(grdparams["nY"]-1)
+                if ((gminX > minSX) | (gmaxX < maxSX) | (gminY > minSY) | (gmaxY < maxSY))
+                    println("ERROR: Stations outside travel time grid!")
+                    @printf("min and max staX: %.4f %.4f\n", minSX, maxSY)
+                    @printf("min and max staY: %.4f %.4f\n", minSY, maxSY)
+                    @printf("min and max gridX: %.4f %.4f\n",gminX,gmaxX)
+                    @printf("min and max gridY: %.4f %.4f\n",gminY,gmaxY)
+                    exit()
+                end
+            end
             
             # update header
             grdparams["interp_mode"] = "linear"
             grdparams["xbounds"] = [inpD["tt_xmin"],inpD["tt_xmax"]]
-            grdparams["ybounds"] = [inpD["tt_ymin"],inpD["tt_ymax"]]
+            if "tt_ymax" in keys(inpD)
+                grdparams["ybounds"] = [inpD["tt_ymin"], inpD["tt_ymax"]]
+            else
+                grdparams["ybounds"] = [inpD["tt_xmin"], inpD["tt_xmax"]]
+            end
             grdparams["zbounds"] = [inpD["tt_zmin"],inpD["tt_zmax"]]
             grdparams["shallowmode"] = shallowmode
 
@@ -295,12 +338,12 @@ if inpD["ttabsrc"] == "nllgrid" # only valid option for 3D case
     const sTT = ttTABs[Int64(ntab/2)+1] # s-wave example
 
 else # Placeholder for now
-    println("Travel time calculation mode not yet implemented: $ttsrc")
+    println("Travel time calculation mode not yet implemented: ", inpD["ttabsrc"])
     println("Ending program.")
     exit()
 end
 
-##### Robustness checks for Tables/Grids #####
+##### Test Interpolation Routines ####
 
 # define test distances, depth
 println("Testing travel time interpolation (P and S waves):")
@@ -323,7 +366,7 @@ end
 
 #### Validate Event Depths and Travel Time Tables
 
-println("\nChecking event depths")
+println("\nChecking event depths...")
 
 # print event depths
 const min_qdep = minimum(qdf.qdep)
@@ -331,11 +374,18 @@ const max_qdep = maximum(qdf.qdep)
 @printf("min and max event depth: %.3fkm %.3fkm\n",min_qdep,max_qdep)
 
 # print table depths
-@printf("min and max grid depth: %.3fkm %.3fkm\n",inpD["tt_zmin"],inpD["tt_zmax"])
+@printf("min and max table depth: %.3fkm %.3fkm\n",inpD["tt_zmin"],inpD["tt_zmax"])
 
 # implement warnings and checks
 if (min_qdep < inpD["tt_zmin"])
     println("WARNING: min event depth < min table depth")
+end
+if (inpD["ttabsrc"]=="trace")
+    if (min_qdep < z_s0[1]) # only checked for ray-trace
+        println("WARNING: min event depth < min vzmodel depth")
+        println("Results may be inaccurate near free-surface...")
+        #exit() # allow this, but warn user (should be ok if depth is near 0)
+    end
 end
 if (max_qdep > inpD["tt_zmax"]) # note tt_zmax is >= vzmax
     println("ERROR: max event depth > max table / velocity model depth")
@@ -344,33 +394,7 @@ end
 
 println("Done.")
 
-
-### Check xcor data
-println("\nValidating xcor data...")
-nbad = sum(abs.(xdf.tdif).>tdifmax)
-if nbad > 0
-    println("Error: bad input differential times, some larger than tdifmax=$tdifmax")
-    println("Fix input file or adjust tdifmax parameter.")
-    ibad = abs.(xdf.tdif).>tdifmax
-    show(xdf[ibad,:])
-    exit()
-end
-println("Max station distance: ",maximum(xdf.sdist))
-@printf("Grid bounds: %f %f %f %f\n",inpD["tt_xmin"],
-    inpD["tt_xmax"],inpD["tt_xmin"],inpD["tt_ymax"])
-maxgridX = max(abs(inpD["tt_xmin"]),inpD["tt_xmax"])
-maxgridY = max(abs(inpD["tt_ymin"]),inpD["tt_ymax"])
-nbad = sum(xdf.sdist.>max(maxgridX,maxgridY))
-if nbad > 0
-    println("Error: bad input xcor data, stations further than travel time table allows")
-    println("Fix input xcor file or adjust travel time table parameter at top of script.")
-    ibad = xdf.sdist.>max(maxgridX,maxgridY)
-    show(xdf[ibad,:])
-    exit()
-end
-println("Done.")
-
-#### Done with robustness checks ###########
+#########################################################################
 
 ############# Main Clustering Loop: Including Bootstrapping ##############
 
@@ -658,12 +682,14 @@ qrmsS = ifelse.(qndiffS.>0,sqrt.(qsseS./qndiffS),NaN64)
 println("Done.\n\nRUN SUMMARY TO FOLLOW:\n")
 
 # Run Parameters
-@printf("************************ Input files ************************\n")
+@printf("********************** Input Parameters ***********************\n")
 @printf("     control file:   %s\n", infile_ctl)
 @printf("       event list:   %s\n", inpD["fin_evlist"])
 @printf("     station list:   %s\n", inpD["fin_stlist"])
 @printf("     xcordat file:   %s\n", inpD["fin_xcordat"])
+@printf("  travel time src:   %s\n", inpD["ttabsrc"])
 @printf("     velocity mdl:   %s\n", inpD["fin_vzmdl"])
+@printf("   map projection:   %s %.6f %.6f\n", inpD["proj"], inpD["lon0"], inpD["lat0"])
 @printf("\n")
 @printf("****************** GROWCLUST Run Parameters *******************\n")
 @printf("%56s %6.2f\n", " (min rxcor value for evpair similarity coeff.): rmin =", inpD["rmin"])

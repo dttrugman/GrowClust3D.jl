@@ -1,9 +1,11 @@
-************************ Input files ************************
+********************** Input Parameters ***********************
      control file:   example.multiprocess.inp
        event list:   data/in/evlist.txt
      station list:   data/in/stlist.txt
      xcordat file:   data/in/xcordata.txt
-     velo/grd mdl:   data/in/vzmodel.txt
+  travel time src:   trace
+     velocity mdl:   data/in/vzmodel.txt
+   map projection:   tmerc -119.690000 39.665000
 
 ************************ Output files *************************
      catalog file:   data/out/out.multiprocess.growclust_cat

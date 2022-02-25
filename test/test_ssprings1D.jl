@@ -44,7 +44,6 @@ const shallowmode = "flat" # option for how to treat shallow seismicity for 1D r
                        # throw makes an error for negative depths
                        # linear does linear interpolation to negative depths
                        # reflect treats negative depths as equivalent to -depth
-const ttabmode = "bystation" # travel time table mode ("bystation" or "byphase") - only for ray trace
 
 # ------- Geodetic parameters -------------
 const degkm = 111.1949266 # for simple degree / km conversion
@@ -225,29 +224,47 @@ println("\nReading xcor data") # in projected coordinates
 @time xdf = read_xcordata_proj(inpD,qdf[!,[:qix,:qid,:qX4,:qY4]],sdf[!,[:sta,:sX4,:sY4]])
 show(xdf)
 println()
+nbad = sum(abs.(xdf.tdif).>tdifmax)
+if nbad > 0 # validate differential times
+    println("Error: bad input differential times, some larger than tdifmax=$tdifmax")
+    println("Fix input file or adjust tdifmax parameter.")
+    ibad = abs.(xdf.tdif).>tdifmax
+    show(xdf[ibad,:])
+    exit()
+end
 
 ### Gather Unique Station/Phase combos
 usta = unique(xdf[!,"sta"])
 nstaU = length(usta)
 println("$nstaU unique stations used:\n",usta,"\n")
 xdf[!,:itab] .= Int16(0)
-if (ttabmode == "byphase") & (inpD["ttabsrc"] == "trace") # one per phase
-    xdf[!,:itab] .= convert.(Int16,xdf[!,:iphase]) # convert to Int16 for compatibility
-    ntab = 2
-else # one per station otherwise
-    staIDX = Dict(zip(usta,1:length(usta)))
-    for ii = 1:nrow(xdf) # table index: first nstaU are for P-waves, next are for S-waves
-        xdf[ii,:itab] = staIDX[xdf[ii,:sta]] + nstaU*(xdf[ii,:iphase]-1)
-    end
-    ntab = 2*nstaU
+staIDX = Dict(zip(usta,1:length(usta)))
+for ii = 1:nrow(xdf) # table index: first nstaU are for P-waves, next are for S-waves
+    xdf[ii,:itab] = staIDX[xdf[ii,:sta]] + nstaU*(xdf[ii,:iphase]-1)
 end
+ntab = 2*nstaU
 println("Updated with table index:")
 show(xdf[!,[:qix1,:qix2,:sta,:tdif,:rxcor,:iphase,:itab]])
+println()
 
-###
+### Subset station list to get min/max values
+subset!(sdf, :sta => ByRow(x -> x in usta))
+minSX, maxSX = minimum(sdf.sX4), maximum(sdf.sX4)
+minSY, maxSY = minimum(sdf.sY4), maximum(sdf.sY4)
+minSR, maxSR = minimum(xdf.sdist), maximum(xdf.sdist)
+@printf("min and max staX: %.4f %.4f\n", minSX, maxSX)
+@printf("min and max staY: %.4f %.4f\n", minSY, maxSY)
+@printf("min and max staR: %.4f %.4f\n", minSR, maxSR)
 
 ###### Ray-Tracing Section ##########
 if inpD["ttabsrc"] == "trace"
+
+    ### In-bounds check
+    if maxSR >= inpD["tt_xmax"]
+        println("ERROR: station distance exceeds tt_xmax!")
+        println("Please modify input file accordingly.")
+        exit()
+    end
 
     ### Read in velocity model
     println("\nReading velocity model..")
@@ -313,16 +330,11 @@ if inpD["ttabsrc"] == "trace"
         for ista = 1:Int64(ntab/2)
 
             # get station depth (negative of elevation)
-            if ttabmode =="bystation"
-                sta = usta[ista] # station name
-                zstart = -sta2elev[sta] # elevation
-                println("Working on phase $phase station $sta: depth $zstart km")
-                ttabfile = @sprintf("tt.%s.%sg",sta,lowercase(phase))
-            else
-                zstart = 0.0 # default is zero depth
-                ttabfile = @sprintf("tt.%sg",lowercase(phase))
-            end
-        
+            sta = usta[ista] # station name
+            zstart = -sta2elev[sta] # elevation
+            println("Working on phase $phase station $sta: depth $zstart km")
+            ttabfile = @sprintf("tt.%s.%sg",sta,lowercase(phase))
+            
             # Ray tracing: compute offset and travel time to different depths
             ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W = trace_rays(
                 iphase,z_s,z,slow,qdeptab,inpD["itp_dz"],zstart)
@@ -346,8 +358,8 @@ if inpD["ttabsrc"] == "trace"
 
             # optional output
             if inpD["fdir_ttab"] != "NONE"
-                write_smtrace_table(inpD["fdir_ttab"] * ttabfile,inpD["fin_vzmdl"],iphase,vzmodel_type,
-                            TT,qdeptab, sdeltab,ptab,zstart)
+                write_smtrace_table(inpD["fdir_ttab"] * ttabfile,inpD["fin_vzmdl"],iphase,
+                vzmodel_type,TT,qdeptab, sdeltab,ptab,zstart)
             end
 
         end # end loop over stations
@@ -392,10 +404,38 @@ elseif inpD["ttabsrc"] == "nllgrid"
                 println("ERROR: PROJECTION MISMATCH: $fname")
                 exit()
             end
+
+            # check bounds
+            if grdparams["gtype"] == "TIME2D"
+                gmaxR = grdparams["yORG"] + grdparams["dY"]*Float64(grdparams["nY"]-1)
+                if gmaxR < maxSR
+                    println("ERROR: maximum station distance too large for grid!")
+                    println("max station distance: $maxSR, max grid distance: $gmaxR")
+                    exit()
+                end
+            else
+                gminX = grdparams["xORG"]
+                gmaxX = grdparams["xORG"] + grdparams["dX"]*Float64(grdparams["nX"]-1)
+                gminY = grdparams["yORG"]
+                gmaxY = grdparams["yORG"] + grdparams["dY"]*Float64(grdparams["nY"]-1)
+                if ((gminX > minSX) | (gmaxX < maxSX) | (gminY > minSY) | (gmaxY < maxSY))
+                    println("ERROR: Stations outside travel time grid!")
+                    @printf("min and max staX: %.4f %.4f\n", minSX, maxSY)
+                    @printf("min and max staY: %.4f %.4f\n", minSY, maxSY)
+                    @printf("min and max gridX: %.4f %.4f\n",gminX,gmaxX)
+                    @printf("min and max gridY: %.4f %.4f\n",gminY,gmaxY)
+                    exit()
+                end
+            end
             
             # update header
             grdparams["interp_mode"] = "linear"
             grdparams["xbounds"] = [inpD["tt_xmin"],inpD["tt_xmax"]]
+            if "tt_ymax" in keys(inpD)
+                grdparams["ybounds"] = [inpD["tt_ymin"], inpD["tt_ymax"]]
+            else
+                grdparams["ybounds"] = [inpD["tt_xmin"], inpD["tt_xmax"]]
+            end
             grdparams["zbounds"] = [inpD["tt_zmin"],inpD["tt_zmax"]]
             grdparams["shallowmode"] = shallowmode
 
@@ -415,28 +455,12 @@ elseif inpD["ttabsrc"] == "nllgrid"
     const sTT = ttTABs[Int64(ntab/2)+1] # s-wave example
 
 else # Placeholder for now
-    println("Travel time calculation mode not yet implemented: $ttsrc")
+    println("Travel time calculation mode not yet implemented: ", inpD["ttabsrc"])
     println("Ending program.")
     exit()
 end
 
-##### Robustness checks for Tables/Grids #####
-
-# find valid distances
-println("\nChecking maximum allowable distance for ray tracing.")
-maxdistTT = inpD["tt_xmax"]
-test_dists = collect(range(inpD["tt_xmin"],inpD["tt_xmax"],step=0.1))
-dep1 = max(inpD["tt_zmin"],floor(minimum(qdf[!,"qdep"])))
-dep2 = min(inpD["tt_zmax"],ceil(maximum(qdf[!,"qdep"])))
-for test_depth in range(dep1,dep2,step=1.0)
-    ttP = pTT(test_dists,test_depth)
-    ttS = sTT(test_dists,test_depth)
-    inan = (isnan.(ttP)) .| (isnan.(ttS))
-    if sum(inan)>0
-        global maxdistTT=min(maxdistTT,test_dists[inan][1]-1.0)
-    end
-end
-println("Given travel time tables, maximum allowable distance: ",maxdistTT)
+##### Test Interpolation Routines ####
 
 # define test distances, depth
 println("Testing travel time interpolation (P and S waves):")
@@ -459,7 +483,7 @@ end
 
 #### Validate Event Depths and Travel Time Tables
 
-println("\nChecking event depths")
+println("\nChecking event depths...")
 
 # print event depths
 const min_qdep = minimum(qdf.qdep)
@@ -487,38 +511,7 @@ end
 
 println("Done.")
 
-
-### Check xcor data
-println("\nValidating xcor data...")
-nbad = sum(abs.(xdf.tdif).>tdifmax)
-if nbad > 0
-    println("Error: bad input differential times, some larger than tdifmax=$tdifmax")
-    println("Fix input file or adjust tdifmax parameter.")
-    ibad = abs.(xdf.tdif).>tdifmax
-    show(xdf[ibad,:])
-    exit()
-end
-println("Max station distance: ",maximum(xdf.sdist))
-nbad = sum(xdf.sdist.>inpD["tt_xmax"])
-if nbad > 0
-    println("Error: bad input xcor data, stations further than travel time table allows")
-    println("Fix input xcor file or adjust travel time table parameter at top of script.")
-    ibad = xdf.sdist.>inpD["tt_xmax"]
-    show(xdf[ibad,:])
-    exit()
-elseif maxdistTT < inpD["tt_xmax"]
-    nbad = sum(xdf.sdist.>maxdistTT)
-    if nbad > 0
-        println("Error: bad input xcor data, stations further than allowed by ray tracing.")
-        println("Given present configuration, rays cannot reach beyond a distance of $maxdistTT.")
-        ibad = xdf.sdist.>maxdistTT
-        show(xdf[ibad,:])
-        exit()
-    end 
-end
-println("Done.")
-
-#### Done with robustness checks ###########
+#########################################################################
 
 ############# Main Clustering Loop: Including Bootstrapping ##############
 
@@ -810,12 +803,15 @@ qrmsS = ifelse.(qndiffS.>0,sqrt.(qsseS./qndiffS),NaN64)
 println("Done.\n\nRUN SUMMARY TO FOLLOW:\n")
 
 # Run Parameters
-@printf("************************ Input files ************************\n")
+@printf("********************** Input Parameters ***********************\n")
 @printf("     control file:   %s\n", infile_ctl)
 @printf("       event list:   %s\n", inpD["fin_evlist"])
 @printf("     station list:   %s\n", inpD["fin_stlist"])
 @printf("     xcordat file:   %s\n", inpD["fin_xcordat"])
+@printf("  travel time src:   %s\n", inpD["ttabsrc"])
 @printf("     velocity mdl:   %s\n", inpD["fin_vzmdl"])
+@printf("   map projection:   %s %.6f %.6f\n", inpD["proj"], inpD["lon0"], inpD["lat0"])
+@printf("\n")
 @printf("\n")
 @printf("****************** GROWCLUST Run Parameters *******************\n")
 @printf("%56s %6.2f\n", " (min rxcor value for evpair similarity coeff.): rmin =", inpD["rmin"])

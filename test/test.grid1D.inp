@@ -47,7 +47,7 @@ tmerc -119.690000 39.665000
 * tt_zmin  tt_zmax
    -2.0        23.0 
 * tt_xmin  tt_xmax
-    0.0        200.0
+    0.0        100.0
 *
 ******************************************
 ***** GrowClust Algorithm Parameters *****
