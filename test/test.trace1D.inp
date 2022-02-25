@@ -45,7 +45,7 @@ tmerc -119.690000 39.665000
 * vpvs_factor  rayparam_min (-1 = default)
   1.732             -1
 * tt_zmin  tt_zmax  tt_zstep
-  -2.0        28.0       1.0
+  -2.0        23.0       1.0
 * tt_xmin  tt_xmax  tt_xstep
    0.0        200.0      2.0
 *
