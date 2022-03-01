@@ -5,7 +5,7 @@
      xcordat file:   data/in/xcordata.txt
   travel time src:   trace
      velocity mdl:   data/in/vzmodel.txt
-   map projection:   tmerc -119.690000 39.665000
+   map projection:   tmerc WGS84 -119.690000 39.665000 0.00
 
 ************************ Output files *************************
      catalog file:   data/out/out.multiprocess.growclust_cat
