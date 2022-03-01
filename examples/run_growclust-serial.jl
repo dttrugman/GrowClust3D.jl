@@ -48,7 +48,6 @@ const shallowmode = "flat" # option for how to treat shallow seismicity for 1D r
 # ------- Geodetic parameters -------------
 const degkm = 111.1949266 # for simple degree / km conversion
 const erad = 6371.0 # average earth radius in km, WGS-84
-const rellipse = "WGS84" # reference ellipse for Proj4 (e.g. "WGS84")
 
 ### Read Input File
 
@@ -130,7 +129,8 @@ println("> Tdif format: ", inpD["tdif_fmt"])
 println("> Travel time source: ", inpD["ttabsrc"])
 println("> Velocity/Grid model: ", inpD["fin_vzmdl"])
 println("Travel time grid directory: ",inpD["fdir_ttab"])
-@printf("Projection: %s %.6f %.6f\n",inpD["proj"],inpD["lon0"],inpD["lat0"])
+@printf("Projection: %s %s %.6f %.6f %.2f\n",
+    inpD["proj"],inpD["rellipse"],inpD["lon0"],inpD["lat0"],inpD["rotateCW"])
 @printf("GrowClust parameters:\n")
 @printf("> rmin, delmax, rmsmax: %.3f %.1f %.3f\n",
     inpD["rmin"],inpD["delmax"],inpD["rmsmax"])
@@ -180,41 +180,36 @@ mean_selev = mean(sdf.selev)
     min_selev, mean_selev, max_selev)
 sta2elev = Dict(zip(sdf.sta,sdf.selev)) # map station to elevation
 
-# ### Map Projection
+##### Map Projections
 
-# # setup projection
-mapproj = inpD["proj"]
+## setup projection
+const mapproj = inpD["proj"]
+const rellipse = inpD["rellipse"]
+const rotateCW = inpD["rotateCW"]
 if mapproj in ["aeqd", "tmerc"]
-    proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
-        "+proj=$mapproj +datum=$rellipse +lat_0=$plat0 +lon_0=$plon0 +units=km")
+    proj = Transformation("+proj=longlat +datum=$rellipse",
+        "+proj=$mapproj +ellps=$rellipse +lat_0=$plat0 +lon_0=$plon0 +units=km")
 elseif mapproj == "merc"
-    proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
-        "+proj=$mapproj +datum=$rellipse +lat_ts=$plat0 +lon_0=$plon0 +units=km")
+    proj = Transformation("+proj=longlat +datum=$rellipse",
+        "+proj=$mapproj +ellps=$rellipse +lat_ts=$plat0 +lon_0=$plon0 +units=km")
 elseif mapproj == "lcc"
-    proj = Transformation("+proj=longlat +datum=$rellipse +no_defs",
-    "+proj=$mapproj +datum=$rellipse +lat_0=$plat0 +lon_0=$plon0 +lat_1= $plat1 +lat_2=$plat2 +units=km")
+    proj = Transformation("+proj=longlat +datum=$rellipse",
+    "+proj=$mapproj +ellps=$rellipse +lat_0=$plat0 +lon_0=$plon0 +lat_1= $plat1 +lat_2=$plat2 +units=km")
 else
     println("ERROR, map projection not defined! ", mapproj)
     exit()
 end
 iproj = inv(proj) # inverse transformation
 
-# project station coordinates
-sdf[!,:sX4] .= 0.0
-sdf[!,:sY4] .= 0.0
-for ii = 1:nrow(sdf)
-    sdf[ii,[:sX4, :sY4]] = proj([sdf.slon[ii] sdf.slat[ii]])
-end
-println("\nProjected station list:")
-show(sdf)
-println()
+# project station coordinates, including rotation
+sX4, sY4 = lonlat2xypos(sdf.slon,sdf.slat,rotateCW,proj)
+sdf[!,:sX4] .= sX4
+sdf[!,:sY4] .= sY4
 
 # project event coordinates
-qdf[!,:qX4] .= 0.0
-qdf[!,:qY4] .= 0.0
-for ii = 1:nrow(qdf)
-    qdf[ii,[:qX4, :qY4]] = proj([qdf.qlon[ii] qdf.qlat[ii]])
-end
+qX4, qY4 = lonlat2xypos(qdf.qlon,qdf.qlat,rotateCW,proj)
+qdf[!,:qX4] .= qX4
+qdf[!,:qY4] .= qY4
 println("\nProjected event list:")
 show(qdf)
 println()
@@ -463,7 +458,7 @@ end
 ##### Test Interpolation Routines ####
 
 # define test distances, depth
-println("Testing travel time interpolation (P and S waves):")
+println("\nTesting travel time interpolation (P and S waves):")
 test_dists = collect(range(0.0,60.0,step=5.0))
 npts = length(test_dists)
 test_depth = 10.0
@@ -601,10 +596,7 @@ println("\n\n\nStarting relocation estimates.")
         hshiftmax,vshiftmax,torgdifmax,nupdate,maxlink)
 
     # inverse projection back to map coordinates
-    brlons, brlats = zeros(nq), zeros(nq)
-    for ii = 1:nq
-        brlons[ii], brlats[ii] = iproj([brXs[ii] brYs[ii]])
-    end
+    brlons, brlats = xypos2latlon(brXs,brYs,rotateCW,iproj)
     
     # save output
     if ib > 0
@@ -975,7 +967,8 @@ flog = open(inpD["fout_log"],"w")
 @printf(flog, "     xcordat file:   %s\n", inpD["fin_xcordat"])
 @printf(flog, "  travel time src:   %s\n", inpD["ttabsrc"])
 @printf(flog, "     velocity mdl:   %s\n", inpD["fin_vzmdl"])
-@printf(flog, "   map projection:   %s %.6f %.6f\n", inpD["proj"], inpD["lon0"], inpD["lat0"])
+@printf(flog, "   map projection:   %s %s %.6f %.6f %.2f\n", 
+    inpD["proj"], inpD["rellipse"], inpD["lon0"], inpD["lat0"], inpD["rotateCW"])
 @printf(flog, "\n")
 @printf(flog,  "************************ Output files *************************\n")
 @printf(flog,  "     catalog file:   %s\n", inpD["fout_cat"])

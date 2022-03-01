@@ -3,15 +3,26 @@ function check_proj(hdrD,inpD)
     
     # ok until proven otherwise
     proj_ok = true
-
-    # maps projection names from Proj4 to NonLinLoc
-    projD = Dict(zip(["aeqd", "lcc", "merc", "tmerc"],
-                 ["AZIMUTHAL_EQUIDIST","LAMBERT","MERC","TRANS_MERC"]))
-
+    
     # check projection
-    if projD[inpD["proj"]] != hdrD["proj"]
+    pmatches = [("AZIMUTHAL_EQUIDIST","aeqd",), # NLL and Proj4 matches
+    ("LAMBERT","lcc"),("MERC","merc"), ("TRANS_MERC","tmerc")] 
+    if !((hdrD["proj"], inpD["proj"]) in pmatches) 
         println("ERROR: PROJECTION TYPE MISMATCH")
         println(inpD["proj"], " & ", hdrD["proj"])
+        proj_ok = false
+    end
+
+    # check reference ellipse
+    rmatches = [
+        ("WGS-84","WGS84"),("GRS-80","GRS80"),("WGS-72","WGS72"),
+        ("Australian","aust_SA"),("Krasovsky","krass"),("International","new_intl"),
+        ("Hayford-1909","intl"),("Clarke-1880","clrk80"),("Clarke-1866","clrk66"),
+        ("Airy","airy"),("Bessel","bessel"),("Sphere","sphere"),
+    ]
+    if !((hdrD["ellipse"],inpD["rellipse"]) in rmatches)
+        println("ERROR: PROJECTION ELLIPSOID MISMATCH")
+        println(inpD["rellipse"], " & ", hdrD["ellipse"])
         proj_ok = false
     end
 
@@ -29,9 +40,10 @@ function check_proj(hdrD,inpD)
         proj_ok = false
     end
     
-    # check rotation (not supported by Proj4 as far as I can tell)
-    if hdrD["rot_angle"] != 0.0
-        println("ERROR: PROJECTION ROT_ANGLE !=0.0")
+    # check rotation (clockwise from N in deg)
+    if hdrD["rot_angle"] != inpD["rotateCW"]
+        println("ERROR: PROJECTION ROT_ANGLE MISMATCH")
+        println(inpD["rotateCW"], " & ", hdrD["rot_angle"])
         proj_ok = false    
     end
             

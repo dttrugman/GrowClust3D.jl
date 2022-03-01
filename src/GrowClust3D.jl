@@ -30,8 +30,12 @@ export check_gcinp, check_auxparams, read_gcinp
 
 # exports from relocation
 include("relocation1D.jl")
-export evalrms, difclust1, difclust2, difclust3, map_distance, robomean, clustertree, xydist
+export evalrms, difclust1, difclust2, difclust3, robomean, clustertree
 include("relocation3D.jl")
 export difclust1_3D, difclust2_3D, difclust3_3D, clustertree_3D
+
+# export from projection
+include("projection.jl")
+export lonlat2xypos, xypos2latlon, map_distance, xydist
 
 end # module
