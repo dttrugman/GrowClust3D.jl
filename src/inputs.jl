@@ -52,11 +52,17 @@ function read_gcinp(inpfile)
             elseif counter == 10
                 data = split(sline)
                 inpD["proj"] = data[1]
-                inpD["lon0"] = parse(Float64,data[2])
-                inpD["lat0"] = parse(Float64,data[3])
+                inpD["rellipse"] = data[2]
+                inpD["lon0"] = parse(Float64,data[3])
+                inpD["lat0"] = parse(Float64,data[4])
                 if inpD["proj"] == "lcc"
-                    inpD["latp1"] = parse(Float64,data[4])
-                    inpD["latp2"] = parse(Float64,data[5])
+                    inpD["latp1"] = parse(Float64,data[5])
+                    inpD["latp2"] = parse(Float64,data[6])
+                    inpD["rotateCW"] = parse(Float64,data[7])
+                elseif length(data) >=5
+                    inpD["rotateCW"] = parse(Float64,data[5])
+                else
+                    inpD["rotateCW"] = 0.0
                 end
             elseif counter == 11
                 data = split(sline)
@@ -233,6 +239,14 @@ function check_gcinp(inpD)
     if !(inpD["proj"] in ["aeqd", "lcc", "merc", "tmerc"])
         println("parameter error: mapproj (not implemented)")
         println(inpD["proj"])
+        input_ok = false
+    end
+
+    # check reference ellipses
+    if !(inpD["rellipse"] in ["WGS84", "GRS80", "WGS72", "clrk80", "clrk66",
+        "intl", "new_intl", "krass", "aust_SA", "airy", "bessel", "sphere"])
+        println("parameter error: rellipse (not implemented)")
+        println(inpD["rellipse"])
         input_ok = false
     end
 
