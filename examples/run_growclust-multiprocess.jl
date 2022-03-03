@@ -178,7 +178,7 @@ print("\nReading station list")
 min_selev = minimum(sdf.selev)
 max_selev = maximum(sdf.selev)
 mean_selev = mean(sdf.selev)
-@printf("station elevation (min,mean,max): %.1fkm %.1fkm %.1fkm\n",
+@printf("station elevation (min,mean,max): %.3fkm %.3fkm %.3fkm\n",
     min_selev, mean_selev, max_selev)
 sta2elev = Dict(zip(sdf.sta,sdf.selev)) # map station to elevation
 
@@ -271,6 +271,13 @@ if inpD["ttabsrc"] == "trace"
     for ii in 1:length(z_s0) # print out
         @printf("%5.2fkm: %6.4f %6.4f\n",z_s0[ii],alpha_s0[ii],beta_s0[ii])
     end
+    # check
+    if -z_s0[1] > max_selev
+        println("ERROR: station elevation above velocity model start!")
+        println("Velocity model start elevation: ", -z_s0[1])
+        println("Maximum station elevation:", max_selev)
+        exit()
+    end
 
     ### Find Moho depth in model, print results
     println("\nMoho depths:")
@@ -321,7 +328,7 @@ if inpD["ttabsrc"] == "trace"
     total_time = @elapsed for (iphase, phase) in enumerate(phases)
 
         # Print results
-        println("Working on Phase $phase\n:")
+        println("\nWorking on Phase: $phase")
 
         # loop over stations 
         for ista = 1:Int64(ntab/2)
