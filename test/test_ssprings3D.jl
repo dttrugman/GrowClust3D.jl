@@ -176,7 +176,7 @@ print("\nReading station list")
 min_selev = minimum(sdf.selev)
 max_selev = maximum(sdf.selev)
 mean_selev = mean(sdf.selev)
-@printf("station elevation (min,mean,max): %.1fkm %.1fkm %.1fkm\n",
+@printf("station elevation (min,mean,max): %.3fkm %.3fkm %.3fkm\n",
     min_selev, mean_selev, max_selev)
 sta2elev = Dict(zip(sdf.sta,sdf.selev)) # map station to elevation
 

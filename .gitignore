@@ -9,4 +9,5 @@ old/*
 old
 test/make_nllgrid*.jl
 test/nll-run*
+test/tt*
 test/.*

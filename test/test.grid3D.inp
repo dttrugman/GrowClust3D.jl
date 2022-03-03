@@ -14,10 +14,10 @@ data/evlist.txt
 *******************************************
 ************   Station list   *************
 *******************************************
-* stlist_fmt (1 = station name)
-1
+* stlist_fmt (1: station name, 2: incl. elev)
+2
 * fin_stlist (station list file name)
-data/stlist.txt
+data/stlist2.txt
 *
 *******************************************
 *************   XCOR data   ***************

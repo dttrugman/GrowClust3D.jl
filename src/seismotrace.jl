@@ -322,10 +322,6 @@ end
 function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz,zstart)
     
     # validate zstart
-    # if zstart > qdeptab[1]
-    #     println("Error in trace_rays: source depth above station")
-    #     println("$zstart > ",qdeptab[1])
-    #     exit()
     if zstart < z_s[1]
         println("Error in trace_rays: station above vzmodel start")
         println("$zstart < ",z_s[1])
@@ -352,7 +348,7 @@ function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz,zstart)
     del2W = fill(NaN64,nray)           # surface-to-surface offset X for each p
     tt2W = fill(NaN64,nray)            # surface-to-surface travel time T for each p
     
-    # surface correction
+    # surface correction (no longer needed?)
     ifix = qdeptab.==zstart
     qdepxcor[:,ifix].=0.0
     qdeptcor[:,ifix].=0.0
@@ -364,25 +360,8 @@ function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz,zstart)
         # start at 0,0
         x, t = 0., 0.
 
-        # find starting depth point
-        istart = findfirst(y->y>=zstart,z_s)
-
-        # in case this is not an interpolated depth point
-        if z_s[istart] > zstart
-            zflat = -erad * log((erad-zstart)/erad) # flattened
-            zfrac = (zflat-z[istart-1])/(z[istart]-z[istart-1])
-            slow1 = slow[istart-1] + zfrac*(slow[istart,iw]-slow[istart-1,iw])
-            slow2 = slow[istart,iw]
-            h = z[istart]-zflat
-            dx, dt, irtr = layer_trace(p,h,slow1,slow2,imth)
-            x+=dx
-            t+=dt
-            if ((irtr==0) | (irtr==2))
-                del2W[ip]=2.0*x
-                tt2W[ip]=2.0*t
-                continue
-            end
-        end
+        # find final depth point above the station
+        istart = findlast(y->y<=zstart,z_s)
 
         # loop over layers
         for ii = istart:(npts-1)
@@ -394,11 +373,21 @@ function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz,zstart)
             end
 
             # layer thickness
-            h = z[ii+1]-z[ii]
+            if ii == istart
+                h = z[ii+1] - zstart # may be partway through layer
+                if (z[ii+1]==z[ii])
+                    slowii = slow[ii,iw]
+                else
+                    slowii = slow[ii,iw] + h/(z[ii+1]-z[ii])*(slow[ii+1,iw]-slow[ii,iw])
+                end 
+            else
+                h = z[ii+1] - z[ii] # full layer thickness
+                slowii = slow[ii,iw]
+            end
             if h <= 0.0; continue; end # skip if interface
 
             # ray tracing through this layer
-            dx, dt, irtr = layer_trace(p,h,slow[ii,iw],slow[ii+1,iw],imth)
+            dx, dt, irtr = layer_trace(p,h,slowii,slow[ii+1,iw],imth)
 
             # update x, t after tracing through layer
             x+=dx
@@ -602,7 +591,6 @@ function first_arrivals(itype, plongcut, qdeptab, sdeltab, usurf, zstart,
         
     # return results
     return tt, aa
-    
     
 end
 
