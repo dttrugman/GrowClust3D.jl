@@ -270,7 +270,7 @@ if inpD["ttabsrc"] == "trace"
         @printf("%5.2fkm: %6.4f %6.4f\n",z_s0[ii],alpha_s0[ii],beta_s0[ii])
     end
     # check
-    if -z_s0[1] > max_selev
+    if max_selev > -z_s0[1]
         println("ERROR: station elevation above velocity model start!")
         println("Velocity model start elevation: ", -z_s0[1])
         println("Maximum station elevation:", max_selev)

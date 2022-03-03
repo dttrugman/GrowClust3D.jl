@@ -11,3 +11,4 @@ test/make_nllgrid*.jl
 test/nll-run*
 test/tt*
 test/.*
+examples/data/out/*.png
