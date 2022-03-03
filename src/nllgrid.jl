@@ -185,15 +185,17 @@ function make_nll_interp(grdfile,params)
         #        reshape(data,nZ,nY,nX),(3,2,1))) # output is X/Y/Z
     end
     
-    # subset grid boundaries (saves memory)
+    # subset grid boundaries (can save memory)
     if "xbounds" in keys(params)
         if params["gtype"] == "TIME2D"
             ymin, ymax = params["xbounds"]
             idxY = findfirst(x->x>=ymin,ys)
             ymin = ys[idxY] # first on-grid point
+            ymax = min(ymax,ys[end]) # last on-grid point
             zmin, zmax = params["zbounds"]
             idxZ = findfirst(x->x>=zmin,zs)
             zmin = zs[idxZ] # first on-grid point
+            zmax = min(zmax,zs[end]) # last on-grid point
             ys = ymin:dY:ymax # updates grid
             zs = zmin:dZ:zmax # updates grid
             jdxY = idxY+length(ys)-1
@@ -203,12 +205,15 @@ function make_nll_interp(grdfile,params)
             xmin, xmax = params["xbounds"]
             idxX = findfirst(x->x>=xmin,xs)
             xmin = xs[idxX] # first on-grid point
+            xmax = min(xmax,xs[end]) # last on-grid point
             ymin, ymax = params["ybounds"]
             idxY = findfirst(x->x>=ymin,ys)
             ymin = ys[idxY] # first on-grid point
+            ymax = min(ymax,ys[end]) # last on-grid point
             zmin, zmax = params["zbounds"]
             idxZ = findfirst(x->x>=zmin,zs)
             zmin = zs[idxZ] # first on-grid point
+            zmax = min(zmax,zs[end]) # last on-grid point
             xs = xmin:dX:xmax # updates grid
             ys = ymin:dY:ymax # updates grid
             zs = zmin:dZ:zmax # updates grid
