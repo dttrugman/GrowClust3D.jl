@@ -40,10 +40,10 @@ function check_proj(hdrD,inpD)
         proj_ok = false
     end
     
-    # check rotation (clockwise from N in deg)
-    if hdrD["rot_angle"] != inpD["rotateCW"]
+    # check rotation angle
+    if hdrD["rot_angle"] != inpD["rotANG"]
         println("ERROR: PROJECTION ROT_ANGLE MISMATCH")
-        println(inpD["rotateCW"], " & ", hdrD["rot_angle"])
+        println(inpD["rotANG"], " & ", hdrD["rot_angle"])
         proj_ok = false    
     end
             

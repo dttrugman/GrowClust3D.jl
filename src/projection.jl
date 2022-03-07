@@ -2,7 +2,7 @@
 
 ### Forward transform using transform object fproj ###
 function lonlat2xypos(lons::Vector{Float64},lats::Vector{Float64},
-    rotateCW::Float64,fproj) # forward projection object
+    rotANG::Float64,fproj) # forward projection object
 
     # initialize
     n = length(lons)
@@ -10,12 +10,12 @@ function lonlat2xypos(lons::Vector{Float64},lats::Vector{Float64},
 
     # project each lon lat point
     for ii in eachindex(xx)
-        if rotateCW == 0.0 # no rotation
+        if rotANG == 0.0 # no rotation
             xx[ii], yy[ii] = fproj([lons[ii] lats[ii]])
-        else # clockwise rotation in degrees of y=N axis
+        else # forward rotation after projection
             xx0, yy0 = fproj([lons[ii] lats[ii]])
-            xx4 = xx0*cosd(rotateCW) + yy0*sind(rotateCW)
-            yy4 = -xx0*sind(rotateCW) + yy0*cosd(rotateCW)
+            xx4 = xx0*cosd(rotANG) + yy0*sind(rotANG)
+            yy4 = -xx0*sind(rotANG) + yy0*cosd(rotANG)
             xx[ii], yy[ii] = xx4, yy4
         end
     end
@@ -27,7 +27,7 @@ end
 
 ### Inverse transform using transform object iproj
 function xypos2latlon(xx::Vector{Float64},yy::Vector{Float64},
-    rotateCW::Float64,iproj) # inverse projection object
+    rotANG::Float64,iproj) # inverse projection object
 
     # initialize
     n = length(xx)
@@ -35,12 +35,12 @@ function xypos2latlon(xx::Vector{Float64},yy::Vector{Float64},
 
     # inverse project each lon lat point
     for ii in eachindex(xx)
-        if rotateCW == 0.0 # no rotation
+        if rotANG == 0.0 # no rotation
             lons[ii], lats[ii] = iproj([xx[ii], yy[ii]])
-        else # clockwise rotation in degrees of y=N axis
+        else # inverse rotation before inverse projection
             xx4, yy4 = xx[ii], yy[ii]
-            xx0 = xx4*cosd(-rotateCW) + yy4*sind(-rotateCW) # negative to reverse
-            yy0 = -xx4*sind(-rotateCW) + yy4*cosd(-rotateCW) # negative to reverse
+            xx0 = xx4*cosd(-rotANG) + yy4*sind(-rotANG) # negative to reverse
+            yy0 = -xx4*sind(-rotANG) + yy4*cosd(-rotANG) # negative to reverse
             lons[ii], lats[ii] = iproj([xx0, yy0])
         end
     end
