@@ -132,7 +132,7 @@ println("> Travel time source: ", inpD["ttabsrc"])
 println("> Velocity/Grid model: ", inpD["fin_vzmdl"])
 println("Travel time grid directory: ",inpD["fdir_ttab"])
 @printf("Projection: %s %s %.6f %.6f %.2f\n",
-    inpD["proj"],inpD["rellipse"],inpD["lon0"],inpD["lat0"],inpD["rotateCW"])
+    inpD["proj"],inpD["rellipse"],inpD["lon0"],inpD["lat0"],inpD["rotANG"])
 @printf("GrowClust parameters:\n")
 @printf("> rmin, delmax, rmsmax: %.3f %.1f %.3f\n",
     inpD["rmin"],inpD["delmax"],inpD["rmsmax"])
@@ -187,7 +187,7 @@ sta2elev = Dict(zip(sdf.sta,sdf.selev)) # map station to elevation
 ## setup projection
 const mapproj = inpD["proj"]
 const rellipse = inpD["rellipse"]
-const rotateCW = inpD["rotateCW"]
+const rotANG = inpD["rotANG"]
 if mapproj in ["aeqd", "tmerc"]
     proj = Transformation("+proj=longlat +ellps=$rellipse",
         "+proj=$mapproj +ellps=$rellipse +lat_0=$plat0 +lon_0=$plon0 +units=km")
@@ -204,12 +204,12 @@ end
 iproj = inv(proj) # inverse transformation
 
 # project station coordinates, including rotation
-sX4, sY4 = lonlat2xypos(sdf.slon,sdf.slat,rotateCW,proj)
+sX4, sY4 = lonlat2xypos(sdf.slon,sdf.slat,rotANG,proj)
 sdf[!,:sX4] .= sX4
 sdf[!,:sY4] .= sY4
 
 # project event coordinates
-qX4, qY4 = lonlat2xypos(qdf.qlon,qdf.qlat,rotateCW,proj)
+qX4, qY4 = lonlat2xypos(qdf.qlon,qdf.qlat,rotANG,proj)
 qdf[!,:qX4] .= qX4
 qdf[!,:qY4] .= qY4
 println("\nProjected event list:")
@@ -658,7 +658,7 @@ end
 blatM = zeros(Float64,nq,nboot+1)
 blonM = zeros(Float64,nq,nboot+1)
 for jj=1:nboot+1
-    blonM[:,jj], blatM[:,jj] = xypos2latlon(bXM[:,jj], bYM[:,jj],rotateCW,iproj)
+    blonM[:,jj], blatM[:,jj] = xypos2latlon(bXM[:,jj], bYM[:,jj],rotANG,iproj)
 end
 
 ### Extract event-based output arrays
@@ -1017,7 +1017,7 @@ flog = open(inpD["fout_log"],"w")
 @printf(flog, "  travel time src:   %s\n", inpD["ttabsrc"])
 @printf(flog, "     velocity mdl:   %s\n", inpD["fin_vzmdl"])
 @printf(flog, "   map projection:   %s %s %.6f %.6f %.2f\n", 
-    inpD["proj"], inpD["rellipse"], inpD["lon0"], inpD["lat0"], inpD["rotateCW"])
+    inpD["proj"], inpD["rellipse"], inpD["lon0"], inpD["lat0"], inpD["rotANG"])
 @printf(flog, "\n")
 @printf(flog,  "************************ Output files *************************\n")
 @printf(flog,  "     catalog file:   %s\n", inpD["fout_cat"])

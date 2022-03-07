@@ -36,7 +36,7 @@ nllgrid
 g2t
 * fdir_ttab (directory for travel time tables/grids or NONE)
 nll-grd3/
-* projection (proj, ellps, lon0, lat0, rotateCW, [latP1, latP2])
+* projection (proj, ellps, lon0, lat0, rotANG, [latP1, latP2])
 tmerc WGS84 -119.690000 39.665000 0.0
 *
 ******************************************
