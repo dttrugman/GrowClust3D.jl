@@ -1,3 +1,23 @@
+### Event Pair Similarity Function ###
+
+### Calculate mean of top N values, with optional pad/fill
+#  Used for new calculation of "rfactor" event pair similarity
+function topNmeanpad(x,n;pad=0.0)
+    
+    # mean of best n
+    nx = length(x)
+    if nx > n
+        y = mean(sort(x,rev=true)[1:n])
+    
+    # pad implicitly rest of n with a fill value
+    else
+        y = (sum(x) + pad*Float32(n-nx)) / Float32(n)
+    end
+    
+    # return
+    return y
+end
+
 ### Robust Mean Based on Huber norm
 
 function robomean(xx::Vector{Float64},xgap::Float64,nit::Int64)
