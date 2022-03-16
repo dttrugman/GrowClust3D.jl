@@ -22,7 +22,8 @@ const distmax2 = 3.0         # maximum relocated distance to join clusters (km)
 const hshiftmax = 2.0        # maximum permitted horizontal cluster shifts (km)
 const vshiftmax = 2.0        # maximum permitted vertical cluster shifts (km)
 const rmedmax = Float32(0.05)         # maximum median absolute tdif residual to join clusters
-const maxlink = 10           # use 10 best event pairs to relocate (optimize later...)
+const maxlink = 12            # use N best event pairs to relocate
+const nbeststa = 24           # use N best xcorr values per event pair
 const nupdate = 10000         # update progress every nupdate pairs
    
 # ------- Relative Relocation subroutine parameters -------------
@@ -544,6 +545,8 @@ println("Done.")
 @everywhere torgdifmax = $torgdifmax
 @everywhere nupdate = $nupdate
 @everywhere maxlink = $maxlink
+@everywhere rmincut = $(inpD["rmincut"])
+@everywhere nbeststa = $nbeststa 
 @everywhere ttTABs = $ttTABs
 @everywhere nq = $(nrow(qdf))
 @everywhere iseed = $iseed
@@ -563,7 +566,7 @@ bcidM = SharedArray(repeat(Vector{Int32}(1:nq),1,nboot+1))
 bnpairM = SharedArray(zeros(Int64,nboot+1))
 
 # base xcor dataframe to sample from
-xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:itab,:igood])
+xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:itab,:rxcor,:igood])
 xdf00[!,:gxcor] = ifelse.(xdf.igood.>0,xdf.rxcor,Float32(0.0)) # xcor with bad values zeroed
 @everywhere xdf00 = $(xdf00)
 
@@ -605,9 +608,10 @@ println("\n\n\nStarting relocation estimates, workers=",workers())
         rxdf[!,:ixx] = Vector{Int64}(1:nxc)
     end
 
-    # compile event pair arrays
-    bpdf = combine(groupby(rxdf[!,Not([:sX4,:sY4,:itab,:tdif])],[:qix1,:qix2]),
-        :gxcor=>sum=>:rfactor,:ixx=>first=>:ix1,:ixx=>last=>:ix2,:igood=>sum=>:ngood)
+    # calculate event pair similarity --> new version
+    bpdf = combine(groupby(rxdf[!,Not([:itab,:tdif])],[:qix1,:qix2]),
+         :rxcor => (x -> topNmeanpad(x,nbeststa,pad=rmincut/2.0)) => :rfactor,
+         :ixx => first => :ix1,:ixx => last => :ix2,:igood => sum => :ngood)
     
     # sort pairs (note, resampled pairs may not have ngoodmin tdifs)
     if ib > 0
