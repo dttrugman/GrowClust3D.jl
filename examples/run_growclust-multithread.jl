@@ -20,7 +20,8 @@ const distmax2 = 3.0         # maximum relocated distance to join clusters (km)
 const hshiftmax = 2.0        # maximum permitted horizontal cluster shifts (km)
 const vshiftmax = 2.0        # maximum permitted vertical cluster shifts (km)
 const rmedmax = Float32(0.05)         # maximum median absolute tdif residual to join clusters
-const maxlink = 10           # use 10 best event pairs to relocate (optimize later...)
+const maxlink = 12            # use N best event pairs to relocate
+const nbeststa = 24           # use N best xcorr values per event pair
 const nupdate = 10000         # update progress every nupdate pairs - NEW
    
 # ------- Relative Relocation subroutine parameters -------------
@@ -519,6 +520,7 @@ println("Done.")
 
 # define event-based output arrays
 const nq = Int32(nrow(qdf))
+const rmincut = inpD["rmincut"]
 revids = qdf[:,:qid]
 rlats = qdf[:,:qlat]
 rlons = qdf[:,:qlon]
@@ -539,7 +541,7 @@ if inpD["nboot"] > 0
 end
 
 # base xcor dataframe to sample from
-xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:itab,:igood])
+xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:itab,:rxcor,:igood])
 xdf00[!,:gxcor] = ifelse.(xdf.igood.>0,xdf.rxcor,Float32(0.0)) # xcor with bad values zeroed
 #show(xdf00)
 
@@ -585,9 +587,10 @@ println("[Progress tracked on Thread 1 only.]")
         rxdf[!,:ixx] = Vector{Int64}(1:nxc)
     end
 
-    # compile event pair arrays
+    # calculate event pair similarity --> new version
     bpdf = combine(groupby(rxdf[!,Not([:sX4,:sY4,:itab,:tdif])],[:qix1,:qix2]),
-        :gxcor=>sum=>:rfactor,:ixx=>first=>:ix1,:ixx=>last=>:ix2,:igood=>sum=>:ngood)
+         :rxcor => (x -> topNmeanpad(x,nbeststa,pad=rmincut/2.0)) => :rfactor,
+         :ixx => first => :ix1,:ixx => last => :ix2,:igood => sum => :ngood)
     
     # sort pairs (note, resampled pairs may not have ngoodmin tdifs)
     if ib > 0
