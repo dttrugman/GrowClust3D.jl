@@ -31,22 +31,23 @@ data/in/xcordata.txt
 *** Velocity Model / Travel Time Tables ***
 *******************************************
 * ttabsrc: travel time table source ("trace" or "nllgrid")
-trace
+nllgrid
 * fin_vzmdl (model name)
-data/in/vzmodel.txt
+g2t
 * fdir_ttab (directory for travel time tables/grids or NONE)
-data/tt/
+data/nll/nll-grd/
 * projection (proj, ellps, lon0, lat0, rotANG, [latP1, latP2])
 tmerc WGS84 -119.690000 39.665000 0.0
+*
 ******************************************
 ***** Travel Time Table Parameters  ******
 ******************************************
-* vpvs_factor  rayparam_min
-  1.732             0.0
-* tt_zmin  tt_zmax  tt_zstep
-  -2.0        21.0       1.0
-* tt_xmin  tt_xmax  tt_xstep
-   0.0       100.0      2.0
+* vpvs_factor
+  1.732             
+* tt_zmin  tt_zmax
+   -2.0        21.0 
+* tt_xmin  tt_xmax
+    0.0       100.0
 *
 ******************************************
 ***** GrowClust Algorithm Parameters *****
@@ -60,14 +61,14 @@ tmerc WGS84 -119.690000 39.665000 0.0
 ************ Output files ****************
 ******************************************
 * nboot  nbranch_min
-   100         2
+   0         2
 * fout_cat (relocated catalog)
-data/out/out.multiprocess.cat
+data/out/out.grid1D.cat
 * fout_clust (relocated cluster file)
-data/out/out.multiprocess.clust
+data/out/out.grid1D.clust
 * fout_log (program log)
-data/out/out.multiprocess.log
+data/out/out.grid1D.log
 * fout_boot (bootstrap distribution)
-data/out/out.multiprocess.boot
+data/out/out.grid1D.boot
 ******************************************
 ******************************************
