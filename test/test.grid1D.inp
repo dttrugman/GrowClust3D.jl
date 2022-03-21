@@ -9,7 +9,7 @@
 * evlist_fmt (1 = phase, 2 = GrowClust, 3 = HypoInverse)
 1
 * fin_evlist (event list file name)
-data/evlist.txt
+../examples/data/in/evlist.txt
 *
 *******************************************
 ************   Station list   *************
@@ -17,7 +17,7 @@ data/evlist.txt
 * stlist_fmt (1: station name, 2: incl. elev)
 2
 * fin_stlist (station list file name)
-data/stlist2.txt
+../examples/data/in/stlist2.txt
 *
 *******************************************
 *************   XCOR data   ***************
@@ -25,7 +25,7 @@ data/stlist2.txt
 * xcordat_fmt (1 = text), tdif_fmt (21 = tt2-tt1, 12 = tt1-tt2)
 1  12
 * fin_xcordat
-data/xcordata.txt
+../examples/data/in/xcordata.txt
 *
 *******************************************
 *** Velocity Model / Travel Time Tables ***
@@ -35,7 +35,7 @@ nllgrid
 * fin_vzmdl (model name)
 g2t
 * fdir_ttab (directory for travel time tables/grids or NONE)
-nll-grd/
+../examples/data/nll/nll-grd/
 * projection (proj, ellps, lon0, lat0, rotANG, [latP1, latP2])
 tmerc WGS84 -119.690000 39.665000 0.0
 *
@@ -45,7 +45,7 @@ tmerc WGS84 -119.690000 39.665000 0.0
 * vpvs_factor
   1.732             
 * tt_zmin  tt_zmax
-   -2.0        23.0 
+   -2.0        21.0 
 * tt_xmin  tt_xmax
     0.0        100.0
 *

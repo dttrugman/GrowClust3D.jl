@@ -1,0 +1,47 @@
+############ Vel2Grid Input file for NonLinLoc / GrowClust Integration ##########
+#     Daniel Trugman, UT Austin. 2022.
+
+ # CONTROL message_flag (0:silent,1:few messages,2:verbose,...), RandomNumSeed
+CONTROL 2 12345
+
+# TRANS: map projection / transformation
+TRANS TRANS_MERC WGS-84 39.665000 -119.690000 0.00
+
+# VGOUT <output file root>
+VGOUT ./../examples/data/nll/nll-run/v2g.inp
+
+# VGTYPE wave_type (P, S)
+VGTYPE P
+VGTYPE S
+
+# VGGRID: grid description with the following fields:
+# nX nY nY --> number of grid points in X, Y, Z
+# oX oY oZ --> origin of grid in km, ENU system
+# dX dY dZ --> grid spacing in in X, Y, Z in km
+# grid type --> VELOCITY = km/s, VELOCITY_METERS = m/s,
+#               SLOWNESS = s/km, VEL2 = vel**2, SLOW2 = slow**2
+#               SLOW_2_METERS = slow**2 ((s/m)**2), SLOW_LEN = slow*d_grid
+# NOTE: num_grid_x must be = 2 for 2D grids)
+VGGRID 2 101 25 0.0 0.0 -3.0 1.0 1.0 1.0 SLOW_LEN
+
+# LAYER depth, Vp_top, Vp_grad, Vs_top, Vs_grad, rho_top, rho_grad
+LAYER -3.0  3.000 0.0  1.732 0.0 2.7 0.0
+LAYER  1.0  3.000 0.0  1.732 0.0 2.7 0.0
+LAYER  1.0  4.500 0.0  2.598 0.0 2.7 0.0
+LAYER  2.0  4.500 0.0  2.598 0.0 2.7 0.0
+LAYER  2.0  5.500 0.0  3.176 0.0 2.7 0.0
+LAYER  4.0  5.500 0.0  3.176 0.0 2.7 0.0
+LAYER  4.0  6.000 0.0  3.464 0.0 2.7 0.0
+LAYER  7.0  6.000 0.0  3.464 0.0 2.7 0.0
+LAYER  7.0  6.100 0.0  3.522 0.0 2.7 0.0
+LAYER 12.0  6.100 0.0  3.522 0.0 2.7 0.0
+LAYER 12.0  6.200 0.0  3.580 0.0 2.7 0.0
+LAYER 18.0  6.200 0.0  3.580 0.0 2.7 0.0
+LAYER 18.0  6.400 0.0  3.695 0.0 2.7 0.0
+LAYER 28.0  6.400 0.0  3.695 0.0 2.7 0.0
+LAYER 28.0  6.800 0.0  3.926 0.0 2.7 0.0
+LAYER 38.0  6.800 0.0  3.926 0.0 2.7 0.0
+LAYER 38.0  7.800 0.0  4.503 0.0 2.7 0.0
+LAYER 50.0  8.000 0.0  4.619 0.0 2.7 0.0
+
+########## END of Vel2Grid control file statements ###########
