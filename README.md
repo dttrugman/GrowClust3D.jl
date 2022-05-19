@@ -7,7 +7,7 @@ Julia implementation of the GrowClust program for relative relocation of earthqu
 
 [Note, to download a local copy of this repository, try `git clone https://github.com/dttrugman/GrowClust3D`.]
 
-The examples/ directory has four different julia scripts. Two of the scripts are simple examples of serial programming without bootstrapping for uncertainty quantification. One of these emulates the classic Fortran90 implementation with 1D layered velocity models, and can be used with either internal ray tracing or with pre-computed NonLinLoc travel time grids. These two example cases can be run using the commands:
+The examples/ directory has four different Julia scripts. Two of the scripts are simple examples of serial programming without bootstrapping for uncertainty quantification. One of these emulates the classic Fortran90 implementation with 1D layered velocity models, and can be used with either internal ray tracing or with pre-computed NonLinLoc travel time grids. These two example cases can be run using the commands:
 
 `julia run_growclust_classic1D.jl example.trace1D.inp`
 
