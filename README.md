@@ -1,5 +1,5 @@
 # GrowClust3D
-Julia implementation of the GrowClust program for relative relocation of earthquake hypocenters based on waveform cross-correlation data. This is a testing version before later public release as a registered package. The longterm vision is to provide more flexibility and 3D velocity model capabilities than the original Fortran90 source code. Complete documentation is still a work in progress but is available in the Wiki tab (https://github.com/dttrugman/GrowClust3D/wiki). We are planning a manuscript describing this new package for publication in Seismological Research Letters. Citation details will be updated at that time.
+Julia implementation of the GrowClust program for relative relocation of earthquake hypocenters based on waveform cross-correlation data. This is a testing version before later public release as a registered package. The longterm vision is to provide more flexibility and 3D velocity model capabilities than the original Fortran90 source code. Complete documentation is still a work in progress but is available in the Wiki tab (https://github.com/dttrugman/GrowClust3D/wiki). We are planning a manuscript describing this new package for publication in *Seismological Research Letters*. Citation details will be updated at that time.
 
 The test version of the package can be installed using the Julia Pkg manager:
 
@@ -7,7 +7,7 @@ The test version of the package can be installed using the Julia Pkg manager:
 
 [Note, to download a local copy of this repository, try `git clone https://github.com/dttrugman/GrowClust3D`.]
 
-The examples/ directory has four different Julia scripts. Two of the scripts are simple examples of serial programming without bootstrapping for uncertainty quantification. One of these emulates the classic Fortran90 implementation with 1D layered velocity models, and can be used with either internal ray tracing or with pre-computed NonLinLoc travel time grids. These two example cases can be run using the commands:
+The `examples/` directory has four different Julia scripts. Two of the scripts are simple examples of serial programming without bootstrapping for uncertainty quantification. One of these emulates the classic Fortran90 implementation with 1D layered velocity models, and can be used with either internal ray tracing or with pre-computed NonLinLoc travel time grids. These two example cases can be run using the commands:
 
 `julia run_growclust_classic1D.jl example.trace1D.inp`
 
