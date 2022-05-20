@@ -9,7 +9,7 @@ The test version of the package can be installed using the Julia Pkg manager:
 
 [Note, to download a local copy of this repository, try `git clone https://github.com/dttrugman/GrowClust3D`.]
 
-Once installed, please do run the test set to check your installation:
+Once installed, please do run the test set to check your installation by running the suite of test problems:
 
 ` pkg> test GrowClust3D`
 
