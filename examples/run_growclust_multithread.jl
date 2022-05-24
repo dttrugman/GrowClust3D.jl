@@ -398,8 +398,28 @@ elseif inpD["ttabsrc"] == "nllgrid"
             fname = inpD["fin_vzmdl"] * "." * phase * "." * sta *".time"
             println("Working on: $fname")
 
+            # Alternate version (if needed)
+            if phase == "S"
+                aphase = "P"
+                vscale = inpD["vpvs_factor"] # S grid = P grid x vscale
+            else
+                aphase = "S"
+                vscale = 1.0/inpD["vpvs_factor"] # P grid = S grid x vscale
+            end
+            aname = inpD["fin_vzmdl"] * "." * aphase * "." * sta *".time"
+
             # get header
-            grdparams = read_nll_head(inpD["fdir_ttab"]*fname)
+            if isfile(inpD["fdir_ttab"]* fname * ".hdr")
+                grdparams = read_nll_head(inpD["fdir_ttab"]*fname)
+                grdparams["vscale"] = Float32(1.0)
+            elseif isfile(inpD["fdir_ttab"]* aname * ".hdr")
+                fname = aname # update file name to alternate
+                grdparams = read_nll_head(inpD["fdir_ttab"]*fname)
+                grdparams["vscale"] = Float32(vscale) # apply Vp/Vs to existing grid
+            else
+                println("ERROR: MISSING GRID: $fname")
+                exit()
+            end
 
             # check projection
             proj_ok = check_proj(grdparams, inpD)
@@ -408,25 +428,12 @@ elseif inpD["ttabsrc"] == "nllgrid"
                 exit()
             end
 
-            # check bounds
+            # check bounds (only needed for TIME2D)
             if grdparams["gtype"] == "TIME2D"
                 gmaxR = grdparams["yORG"] + grdparams["dY"]*Float64(grdparams["nY"]-1)
                 if gmaxR < maxSR
                     println("ERROR: maximum station distance too large for grid!")
                     println("max station distance: $maxSR, max grid distance: $gmaxR")
-                    exit()
-                end
-            else
-                gminX = grdparams["xORG"]
-                gmaxX = grdparams["xORG"] + grdparams["dX"]*Float64(grdparams["nX"]-1)
-                gminY = grdparams["yORG"]
-                gmaxY = grdparams["yORG"] + grdparams["dY"]*Float64(grdparams["nY"]-1)
-                if ((gminX > minSX) | (gmaxX < maxSX) | (gminY > minSY) | (gmaxY < maxSY))
-                    println("ERROR: Stations outside travel time grid!")
-                    @printf("min and max staX: %.4f %.4f\n", minSX, maxSY)
-                    @printf("min and max staY: %.4f %.4f\n", minSY, maxSY)
-                    @printf("min and max gridX: %.4f %.4f\n",gminX,gmaxX)
-                    @printf("min and max gridY: %.4f %.4f\n",gminY,gmaxY)
                     exit()
                 end
             end
