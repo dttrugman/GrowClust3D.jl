@@ -173,16 +173,17 @@ function make_nll_interp(grdfile,params)
     data = Array{Float32}(undef, ndata)
     read!(grdfile,data)
 
-    # reshape into Float64 grid: either (R,Z) or (X,Y,Z)
+    # apply Vp/Vs scaling if necessary (e.g., convert P grid to S)
+    if params["vscale"] != 1.0
+        data *= Float32(params["vscale"])
+    end
+
+    # reshape into multidimensional grid: either (R,Z) or (X,Y,Z)
     if params["gtype"] == "TIME2D"
         data = permutedims(reshape(data,nZ,nY),(2,1)) # output is R/Z order, Float32
-        #data = convert.(Float64,permutedims(
-        #        reshape(data,nZ,nY),(2,1))) # output is R/Z order
         
     else
         data = permutedims(reshape(data,nZ,nY,nX),(3,2,1)) # output is X/Y/Z, Float32
-        #data = convert.(Float64,permutedims(
-        #        reshape(data,nZ,nY,nX),(3,2,1))) # output is X/Y/Z
     end
     
     # subset grid boundaries (can save memory)
