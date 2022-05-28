@@ -9,13 +9,13 @@ The test version of the package can be installed using the Julia Pkg manager:
 
 [Note, to download a local copy of this repository, try `git clone https://github.com/dttrugman/GrowClust3D`.]
 
-Once installed, please do run the test set to check your installation by running the suite of test problems:
+Once installed, please do run the test set that checks your installation by running a suite of test problems:
 
 ` pkg> test GrowClust3D`
 
 ---
 
-The `examples/` directory has four different Julia scripts. Two of the scripts are simple examples of serial programming without bootstrapping for uncertainty quantification. One of these emulates the classic Fortran90 implementation with 1D layered velocity models, and can be used with either internal ray tracing or with pre-computed NonLinLoc travel time grids. These two example cases can be run using the commands:
+The `examples/` directory has four different Julia (.jl) scripts and five different input (.inp) files. Two of the scripts are simple examples of serial programming without bootstrapping for uncertainty quantification. One of these emulates the classic Fortran90 implementation with 1D layered velocity models, and can be used with either internal ray tracing or with pre-computed NonLinLoc travel time grids. These two example cases can be run using the commands:
 
 `julia run_growclust_classic1D.jl example.trace1D.inp`
 
