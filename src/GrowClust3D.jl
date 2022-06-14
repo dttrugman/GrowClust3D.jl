@@ -26,7 +26,7 @@ export read_nll_head, make_nll_interp, check_proj
 # exports from inputs
 include("inputs.jl")
 export read_evlist, read_stlist, read_vzmodel, read_xcordata_proj
-export check_gcinp, check_auxparams, read_gcinp
+export check_gcinp, check_auxparams, read_gcinp, print_input
 
 # exports from relocation
 include("relocation1D.jl")
@@ -36,6 +36,18 @@ export difclust1_3D, difclust2_3D, difclust3_3D, clustertree_3D
 
 # export from projection
 include("projection.jl")
-export lonlat2xypos, xypos2latlon, map_distance, xydist
+export lonlat2xypos, xypos2latlon, map_distance, xydist, setup_projection
+
+# export from traveltime
+include("traveltime.jl")
+export make_nllgrid_tables, make_trace1D_tables
+
+# export from postprocess
+include("postprocess.jl")
+export compute_misfits, compute_bootstats, make_clustertree
+
+# export from outputs
+include("outputs.jl")
+export write_log, write_cat, write_clust, write_boot
 
 end # module

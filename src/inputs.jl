@@ -88,15 +88,18 @@ function read_gcinp(inpfile)
                     inpD["tt_xmin"] = parse(Float64,data[1])
                     inpD["tt_xmax"] = parse(Float64,data[2])
                     inpD["tt_xstep"] = parse(Float64,data[3])
+                    inpD["tt_ndim"] = 2
                 elseif inpD["ttabsrc"] == "nllgrid"
                     if length(data) == 2
                         inpD["tt_xmin"] = parse(Float64,data[1])
                         inpD["tt_xmax"] = parse(Float64,data[2])
+                        inpD["tt_ndim"] = 2
                     else
                         inpD["tt_xmin"] = parse(Float64,data[1])
                         inpD["tt_xmax"] = parse(Float64,data[2])
                         inpD["tt_ymin"] = parse(Float64,data[3])
                         inpD["tt_ymax"] = parse(Float64,data[4])
+                        inpD["tt_ndim"] = 3
                     end
                 end
             elseif counter == 14
@@ -351,6 +354,40 @@ function read_evlist(evfile,evfmt)
     # return results
     return df
     
+end
+
+##### Simple Input Printing Function
+
+function print_input(inpD)
+    
+    println("\nInput verified! Check results below:")
+    println("====================================")
+    @printf("Input files:\n")
+    println("> Event list: ", inpD["fin_evlist"])
+    println("> Event format: ", inpD["evlist_fmt"])
+    println("> Station list: ", inpD["fin_stlist"])
+    println("> Station format: ", inpD["stlist_fmt"])
+    println("> Xcor dataset: ", inpD["fin_xcordat"])
+    println("> Xcor format: ", inpD["xcordat_fmt"])
+    println("> Tdif format: ", inpD["tdif_fmt"])
+    println("> Travel time source: ", inpD["ttabsrc"])
+    println("> Velocity/Grid model: ", inpD["fin_vzmdl"])
+    println("Travel time grid directory: ",inpD["fdir_ttab"])
+    @printf("Projection: %s %s %.6f %.6f %.2f\n",
+        inpD["proj"],inpD["rellipse"],inpD["lon0"],inpD["lat0"],inpD["rotANG"])
+    @printf("GrowClust parameters:\n")
+    @printf("> rmin, delmax, rmsmax: %.3f %.1f %.3f\n",
+        inpD["rmin"],inpD["delmax"],inpD["rmsmax"])
+    @printf("> rpsavgmin, rmincut, ngoodmin, iponly: % .3f %.3f %d %d\n",
+        inpD["rpsavgmin"],inpD["rmincut"],inpD["ngoodmin"],inpD["iponly"])
+    @printf("> nboot, nbranch_min: %d %d\n",
+        inpD["nboot"],inpD["nbranch_min"])
+    @printf("Output files:\n")
+    println("> Relocated catalog: ", inpD["fout_cat"])
+    println("> Cluster file: ", inpD["fout_clust"])
+    println("> Bootstrap file: ", inpD["fout_boot"])
+    println("> Log file: ", inpD["fout_log"])
+
 end
 
 ### Station List Reader
