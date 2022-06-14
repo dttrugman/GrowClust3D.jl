@@ -15,7 +15,13 @@ Once installed, please do run the test set that checks your installation by runn
 
 ---
 
-The `examples/` directory has four different Julia (.jl) scripts and five different input (.inp) files. Two of the scripts are simple examples of serial programming without bootstrapping for uncertainty quantification. One of these emulates the classic Fortran90 implementation with 1D layered velocity models, and can be used with either internal ray tracing or with pre-computed NonLinLoc travel time grids. These two example cases can be run using the commands:
+The `examples/` directory has two different Julia (.jl) "run" scripts: `run_growclust3D.jl
+
+
+
+along with four different example input (.inp) files. Any of the input files can be paired with either of the run scripts.
+
+Two of the scripts are simple examples of serial programming without bootstrapping for uncertainty quantification. One of these emulates the classic Fortran90 implementation with 1D layered velocity models, and can be used with either internal ray tracing or with pre-computed NonLinLoc travel time grids. These two example cases can be run using the commands:
 
 `julia run_growclust_classic1D.jl example.trace1D.inp`
 

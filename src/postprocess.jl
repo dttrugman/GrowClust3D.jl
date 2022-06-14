@@ -195,7 +195,7 @@ end
 
 ### Compute bootstrap statistics ###
 
-function compute_bootstats(inpD,rdf,bnbM,blonM,blatM,bdepM,borgM)
+function compute_bootstats(inpD,degkm,rdf,bnbM,blonM,blatM,bdepM,borgM)
 
     # pre-allocate: defaults are NaN for errors, 0 for nb arrays
     nq = nrow(rdf)

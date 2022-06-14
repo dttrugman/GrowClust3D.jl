@@ -68,6 +68,6 @@ data/out/out.trace1D.clust
 * fout_log (program log)
 data/out/out.trace1D.log
 * fout_boot (bootstrap distribution)
-data/out/out.trace1D.boot
+NONE
 ******************************************
 ******************************************

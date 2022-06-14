@@ -1,5 +1,5 @@
 ********************** Input Parameters ***********************
-     control file:   example.grid3D.inp
+     control file:   example.nllgrid3D.inp
        event list:   data/in/evlist.txt
      station list:   data/in/stlist2.txt
      xcordat file:   data/in/xcordata.txt
@@ -8,10 +8,10 @@
    map projection:   tmerc WGS84 -119.690000 39.665000 0.00
 
 ************************ Output files *************************
-     catalog file:   data/out/out.grid3D.cat
-     cluster file:   data/out/out.grid3D.clust
-         log file:   data/out/out.grid3D.log
-   bootstrap file:   data/out/out.grid3D.boot
+     catalog file:   data/out/out.nllgrid3D.cat
+     cluster file:   data/out/out.nllgrid3D.clust
+         log file:   data/out/out.nllgrid3D.log
+   bootstrap file:   NONE
 
 ****************** GROWCLUST Run Parameters *******************
   (min rxcor value for evpair similarity coeff.): rmin =   0.60
