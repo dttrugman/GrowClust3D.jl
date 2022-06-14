@@ -134,7 +134,7 @@ function difclust1(qX0::Float64,qY0::Float64,qZ0::Float64,
     qZ1::Vector{Float64},qT1::Vector{Float32},
     qX2::Vector{Float64},qY2::Vector{Float64},
     qZ2::Vector{Float64},qT2::Vector{Float32},
-    ttTABs,boxwid::Float64,nit::Int64)
+    ttTABs::AbstractVector{},boxwid::Float64,nit::Int64)
 
 # initialize variables to track best solution
 fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
@@ -258,7 +258,7 @@ function difclust2(qX0::Float64,qY0::Float64,qZ0::Float64,
     qZ1::Vector{Float64},qT1::Vector{Float32},
     qX2::Vector{Float64},qY2::Vector{Float64},
     qZ2::Vector{Float64},qT2::Vector{Float32},
-    ttTABs,boxwid::Float64,nit::Int64)
+    ttTABs::AbstractVector{},boxwid::Float64,nit::Int64)
 
 # initialize variables to track best solution
 fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
@@ -382,7 +382,7 @@ function difclust3(qX0::Float64,qY0::Float64,qZ0::Float64,
     qZ1::Vector{Float64},qT1::Vector{Float32},
     qX2::Vector{Float64},qY2::Vector{Float64},
     qZ2::Vector{Float64},qT2::Vector{Float32},
-    ttTABs,boxwid::Float64,nit::Int64)
+    ttTABs::AbstractVector{},boxwid::Float64,nit::Int64)
 
 # initialize variables to track best solution
 fxbest1, fybest1, fzbest1 = 0.0, 0.0, 0.0
@@ -519,7 +519,7 @@ end
 # function with i32 ixx arrays
 function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int32},ixx2::Vector{Int32},
     tdif::Vector{Float32},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
-    qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
+    qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs::AbstractVector{},
     nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float32,rmedmax::Float32,
     distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float32,
     nupdate::Int64,maxlink::Int64)
@@ -791,7 +791,7 @@ end
 ####### function with i64 ixx arrays
 function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int64},ixx2::Vector{Int64},
     tdif::Vector{Float32},sX::Vector{Float64},sY::Vector{Float64},itab::Vector{Int16},
-    qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs,
+    qXs::Vector{Float64},qYs::Vector{Float64},qZs::Vector{Float64},ttTABs::AbstractVector{},
     nit::Int64,boxwid::Float64,irelonorm::Int64,rmsmax::Float32,rmedmax::Float32,
     distmax::Float64,distmax2::Float64,hshiftmax::Float64,vshiftmax::Float64,torgdifmax::Float32,
     nupdate::Int64,maxlink::Int64)

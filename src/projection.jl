@@ -50,6 +50,32 @@ function xypos2latlon(xx::Vector{Float64},yy::Vector{Float64},
 
 end
 
+### Function to setup map projection based on input parameters
+
+function setup_projection(inpD,plon0,plat0,plat1,plat2)
+
+    ## setup projection
+    mapproj = inpD["proj"]
+    rellipse = inpD["rellipse"]
+    if mapproj in ["aeqd", "tmerc"]
+        proj = Transformation("+proj=longlat +ellps=$rellipse",
+            "+proj=$mapproj +ellps=$rellipse +lat_0=$plat0 +lon_0=$plon0 +units=km")
+    elseif mapproj == "merc"
+        proj = Transformation("+proj=longlat +ellps=$rellipse",
+            "+proj=$mapproj +ellps=$rellipse +lat_ts=$plat0 +lon_0=$plon0 +units=km")
+    elseif mapproj == "lcc"
+        proj = Transformation("+proj=longlat +ellps=$rellipse",
+        "+proj=$mapproj +ellps=$rellipse +lat_0=$plat0 +lon_0=$plon0 +lat_1= $plat1 +lat_2=$plat2 +units=km")
+    else
+        println("ERROR, map projection not defined! ", mapproj)
+        exit()
+    end
+
+    # return projection object
+    return proj
+
+end
+
 ### Simple functions to compute distances between points on a map ####
 #  > Inputs: lat1, lon1, lat2, lon2 (float or vector)
 #  < Returns: distance in km  (float or vector)
