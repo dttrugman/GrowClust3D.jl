@@ -429,7 +429,8 @@ end
 ### Write Output File: Bootstrapping (if requested)
 if (inpD["nboot"] > 1)&(!(inpD["fout_boot"] in ["none","None", "NONE"]))
     write_boot(inpD,rdf,boot_madH,boot_madT,boot_madZ,
-        boot_nbH,boot_nbL,boot_nbM,boot_stdH,boot_stdT,boot_stdZ)
+        boot_nbH,boot_nbL,boot_nbM,boot_stdH,boot_stdT,boot_stdZ,
+        blatM,blonM,bdepM,bnbM)
 end
 
 ### Write Output File: Log / Statistics (or print to screen)

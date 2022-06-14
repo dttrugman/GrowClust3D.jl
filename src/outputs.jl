@@ -87,7 +87,8 @@ end
 ######### Function to Write Bootstrap File #########
 
 function write_boot(inpD,rdf,boot_madH,boot_madT,boot_madZ,
-    boot_nbH,boot_nbL,boot_nbM,boot_stdH,boot_stdT,boot_stdZ)
+    boot_nbH,boot_nbL,boot_nbM,boot_stdH,boot_stdT,boot_stdZ,
+    blatM,blonM,bdepM,bnbM)
     
     println("\nWriting output bootstrapping")
     
