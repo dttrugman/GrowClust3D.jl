@@ -438,4 +438,4 @@ write_log(inpD,[infile_ctl, distmax, distmax2, hshiftmax, vshiftmax, rmedmax],
     [nq, nreloc, npair, qnpair, npp, nss, rmsP, rmsS, msresP, msresS], tnbranch)
 
 ### Report completion
-@printf("\nCompleted task: run_growclust3D.jl")
+@printf("\nCompleted task: run_growclust3D.jl\n")
