@@ -19,10 +19,10 @@ The `examples/` directory has two different Julia (.jl) "run/driver" scripts: `r
 
 In addition, there are four different example input (.inp) files. Any of the input files can be paired with either of the two run scripts. The example input files are as follows:
 
-1.
-2.
-3.
-4.
+1. `example.trace1D.inp`: example raytracing a 1D velocity model
+2. `example.nllgrid1D.inp`: example using precomputed (NonLinLoc) 1D travel time grid
+3. `example.nllgrid3D.inp`: example using precomputed (NonLinLoc) 3D travel time grid
+4. `example.nboot100.inp`: example with bootstrapping (e.g. to test parallelization)
 
 `julia run_growclust_classic1D.jl example.trace1D.inp`
 
