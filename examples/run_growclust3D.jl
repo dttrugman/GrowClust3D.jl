@@ -410,7 +410,7 @@ npp, nss, rmsP, rmsS, msresP, msresS, qrmsP, qrmsS,
 
 ### Compute bootstrap statistics ###
 boot_madH, boot_madZ, boot_madT, boot_stdH, boot_stdZ, boot_stdT,
-    boot_nbL, boot_nbM, boot_nbH = compute_bootstats(inpD,rdf,bnbM,blonM,blatM,bdepM,borgM)
+    boot_nbL, boot_nbM, boot_nbH = compute_bootstats(inpD,degkm,rdf,bnbM,blonM,blatM,bdepM,borgM)
         
 #########################################################
 
