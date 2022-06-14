@@ -95,10 +95,11 @@ function write_boot(inpD,rdf,boot_madH,boot_madT,boot_madZ,
     fbb = open(inpD["fout_boot"],"w")
     
     # file header
+    nq = nrow(rdf)
     @printf(fbb,"%8d %5d\n",nq,inpD["nboot"])
     
     # loop over events
-    for ii = 1:nrow(rdf)
+    for ii = 1:nq
         
         # event header
         @printf(fbb,"%8d %9d %9.5f %10.5f %7.3f ",
@@ -182,7 +183,6 @@ function write_log(inpD,auxparams,runstats,tnbranch)
         @printf(flog, "%56s %6.2f\n", " max permitted vertical cluster shifts: ", vshiftmax)
         @printf(flog, "%56s %6.2f\n", " max median absolute residual to join clusters: ", rmedmax)  
         @printf(flog,  "***************************************************************\n")
-
 
         # Run Summary with statistics
         @printf(flog, "\n")
