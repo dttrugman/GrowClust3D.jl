@@ -15,9 +15,9 @@ Once installed, please do run the test set that checks your installation by runn
 
 ---
 
-The `examples/` directory has two different Julia (.jl) "run/driver" scripts: `run_growclust3D.jl` as a reference example for typical usage on a single processor, and `run_growclust3D-MP.jl` which is similar in spirit but designed for multiprocessing on multiple cores.
+The `examples/` directory has two different Julia (.jl) "run/driver" scripts: `run_growclust3D.jl` as a reference example for typical usage on a single processor, and `run_growclust3D-MP.jl` which is similar in spirit but designed for multiprocessing on multiple cores. These two .jl scripts can be copied and reused as examples for any generic GrowClust3D problem with little/no modification.
 
-In addition, there are four different example input (.inp) files related to the Spanish Springs, Nevada earthquake sequence. Any of the input files can be paired with either of the two run scripts. The example input files are summarized as follows:
+The primary way to tailor GrowClust3D to your dataset is by modifying the input files. With this in mind, in `examples/` there are four different example input (.inp) files related to the Spanish Springs, Nevada earthquake sequence. Any of the input files can be paired with either of the two run scripts. The example input files are summarized as follows:
 
 1. `example.trace1D.inp`: example raytracing a 1D velocity model
 2. `example.nllgrid1D.inp`: example using precomputed (NonLinLoc) 1D travel time grid
