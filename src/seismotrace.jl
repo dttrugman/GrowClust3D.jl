@@ -13,6 +13,7 @@
 #     zz: Depth points
 #     vp: Vp at each depth
 #     vs: Vs at each depth
+#     const_VpVs: true or false, if Vs is just a constant times Vp
 
 function read_vzmodel(fname; vpvs=sqrt(3.0))
    
@@ -36,9 +37,17 @@ function read_vzmodel(fname; vpvs=sqrt(3.0))
        end
        beta[ii] = b
     end
+
+    # check to see if constant vp/vs
+    beta0 = alpha ./ vpvs
+    if maximum(abs.(beta-beta0)) < 0.001
+        const_VpVs = true
+    else
+        const_VpVs = false
+    end
     
     # return data
-    return zz, alpha, beta
+    return zz, alpha, beta, const_VpVs
     
 end
 

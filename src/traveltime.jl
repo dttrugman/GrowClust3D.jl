@@ -13,8 +13,9 @@ function make_trace1D_tables(inpD,maxSR,max_selev,usta,sta2elev,ntab,
     ### Read in velocity model
     println("\nReading velocity model..")
     # read in
-    z_s0, alpha_s0, beta_s0 = read_vzmodel(
+    z_s0, alpha_s0, beta_s0, const_VpVs = read_vzmodel(
         inpD["fin_vzmdl"],vpvs=inpD["vpvs_factor"])
+    println("Constant Vp/Vs: ", const_VpVs)
     for ii in 1:length(z_s0) # print out
         @printf("%5.2fkm: %6.4f %6.4f\n",z_s0[ii],alpha_s0[ii],beta_s0[ii])
     end
@@ -67,6 +68,7 @@ function make_trace1D_tables(inpD,maxSR,max_selev,usta,sta2elev,ntab,
 
     # store all tables here
     ttLIST = [] # stations for P, then stations for S
+    sLIST = [] # for S-waves (used in constant Vp/Vs cases)
     phases = ["P","S"] # make P and S tables
     plongcuts = [inpD["plongcutP"],inpD["plongcutS"]] # cutoffs
 
@@ -85,6 +87,13 @@ function make_trace1D_tables(inpD,maxSR,max_selev,usta,sta2elev,ntab,
             zstart = -sta2elev[sta] # elevation
             println("Working on phase $phase station $sta: depth $zstart km")
             ttabfile = @sprintf("tt.%s.%sg",sta,lowercase(phase))
+
+            # check if we can just use Vp/Vs and skip the actual calculation
+            if (phase=="S") & (const_VpVs)
+                println("...using fixed Vp/Vs.")
+                push!(ttLIST,sLIST[ista])
+                continue
+            end
             
             # Ray tracing: compute offset and travel time to different depths
             ptab, qdepxcor, qdeptcor, qdepucor, del2W, tt2W = trace_rays(
@@ -107,10 +116,22 @@ function make_trace1D_tables(inpD,maxSR,max_selev,usta,sta2elev,ntab,
             iTT = make_smtrace_table(sdeltab,qdeptab,convert.(Float32,TT),shallowmode)
             push!(ttLIST,iTT)
 
+            # for constant Vp/Vs cases, S-table comes nearly for free
+            if const_VpVs
+                jTT = make_smtrace_table(sdeltab,qdeptab,
+                    convert.(Float32,TT*inpD["vpvs_factor"]),shallowmode)
+                push!(sLIST, jTT)
+            end
+
             # optional output
             if inpD["fdir_ttab"] != "NONE"
                 write_smtrace_table(inpD["fdir_ttab"] * ttabfile,inpD["fin_vzmdl"],iphase,
-                vzmodel_type,TT,qdeptab, sdeltab,ptab,zstart)
+                vzmodel_type,TT,qdeptab,sdeltab,ptab,zstart)
+                if const_VpVs # S-wave table from Vp/Vs
+                    ttabfile2 = @sprintf("tt.%s.%sg",sta,lowercase(phases[iphase+1]))
+                    write_smtrace_table(inpD["fdir_ttab"] * ttabfile2,inpD["fin_vzmdl"],iphase+1,
+                    vzmodel_type,TT*inpD["vpvs_factor"],qdeptab,sdeltab,ptab,zstart)
+                end
             end
 
         end # end loop over stations
