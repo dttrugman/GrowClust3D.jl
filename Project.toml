@@ -1,6 +1,6 @@
 name = "GrowClust3D"
 uuid = "59dc28db-a7c2-48c3-baa7-9a4a695502ae"
-authors = ["Daniel Trugman <dtrugman@jsg.utexas.edu>"]
+authors = ["Daniel Trugman <dtrugman@unr.edu>"]
 version = "0.1.0"
 
 [deps]
