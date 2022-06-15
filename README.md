@@ -1,13 +1,13 @@
-# GrowClust3D
+# GrowClust3D.jl
 This repository hosts a Julia implementation of the GrowClust program for relative relocation of earthquake hypocenters based on waveform cross-correlation data. The vision for this program is to provide more flexibility and 3D velocity model capabilities than the original Fortran90 source code. Complete documentation is still a work in progress but here: https://github.com/dttrugman/GrowClust3D/wiki/Documentation. We are planning a manuscript describing this new package for publication in *Seismological Research Letters*. Citation details will be updated at that time.
 
 ---
 
 The (unregistered) package can be installed using the Julia Pkg manager:
 
-` pkg> add https://github.com/dttrugman/GrowClust3D`
+` pkg> add https://github.com/dttrugman/GrowClust3D.jl`
 
-[Note, to download a local copy of this repository, try `git clone https://github.com/dttrugman/GrowClust3D`.]
+[Note, to download a local copy of this repository, try `git clone https://github.com/dttrugman/GrowClust3D.jl`.]
 
 Once installed, please do run the test set that checks your installation by running a suite of test problems:
 
