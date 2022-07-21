@@ -90,7 +90,7 @@ function read_gcinp(inpfile)
                     inpD["tt_xstep"] = parse(Float64,data[3])
                     inpD["tt_ndim"] = 2
                 elseif inpD["ttabsrc"] == "nllgrid"
-                    if length(data) == 2
+                    if length(data) < 4
                         inpD["tt_xmin"] = parse(Float64,data[1])
                         inpD["tt_xmax"] = parse(Float64,data[2])
                         inpD["tt_ndim"] = 2
@@ -181,7 +181,7 @@ function check_gcinp(inpD)
         # check for valid directory storing these files
         if !(ispath(inpD["fdir_ttab"]))
             println("Input error, no path to travel time grids:")
-            println(inpD["fdir_tab"])
+            println(inpD["fdir_ttab"])
             input_ok = false
         end
 
