@@ -416,7 +416,7 @@ rorgs, rcids, npair = borgM[:,nboot+1], bcidM[:,nboot+1], bnpairM[nboot+1]
 ### Finalize Clustering Trees and Relocated Catalog
 
 # compile clustering tree
-rnbranch, tnbranch,tlats,tlons,tdeps,torgs = make_clustertree(
+rnbranch,rcids,tnbranch,tlats,tlons,tdeps,torgs = make_clustertree(
     rlons,rlats,rdeps,rorgs,rcids,qdf.qix)
 
 # initialize relocated dataframe

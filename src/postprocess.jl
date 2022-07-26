@@ -24,7 +24,6 @@ function make_clustertree(rlons,rlats,rdeps,rorgs,rcids,qix)
     nclust = maximum(tdf.cid)
 
     # update cluster ids for all events
-    rcids00 = copy(rcids)
     rnbranch = tdf.nb
     rcids = tdf.cid
 
@@ -42,7 +41,7 @@ function make_clustertree(rlons,rlats,rdeps,rorgs,rcids,qix)
     end
 
     # return results
-    return rnbranch, tnbranch,tlats,tlons,tdeps,torgs
+    return rnbranch,rcids,tnbranch,tlats,tlons,tdeps,torgs
 
 end
 
