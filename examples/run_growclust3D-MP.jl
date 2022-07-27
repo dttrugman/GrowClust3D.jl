@@ -17,11 +17,11 @@ using GrowClust3D
 ####### Define Algorithm Parameters (modify as necessary) #######
 
 # ------- GrowClust algorithm parameters -------------------------------
-const distmax = 5.0           # maximum catalog(input) distance to join clusters (km)
-const distmax2 = 3.0          # maximum relocated distance to join clusters (km)
+const distmax = 8.0           # maximum catalog(input) distance to join clusters (km)
+const distmax2 = 6.0          # maximum relocated distance to join clusters (km)
 const hshiftmax = 2.0         # maximum permitted horizontal cluster shifts (km)
 const vshiftmax = 2.0         # maximum permitted vertical cluster shifts (km)
-const rmedmax = Float32(0.05) # maximum median absolute tdif residual to join clusters
+const rmedmax = Float32(0.1) # maximum median absolute tdif residual to join clusters
 const maxlink = 12            # use N best event pairs to relocate
 const nbeststa = 24           # use N best xcorr values per event pair
 const nupdate = 10000         # update progress every nupdate pairs
