@@ -1,0 +1,27 @@
+############ Grid2Time Input file for NonLinLoc / GrowClust Integration ##########
+#     Daniel Trugman, UT Austin. 2022.
+
+ # CONTROL message_flag (0:silent,1:few messages,2:verbose,...), RandomNumSeed
+CONTROL 1 12345
+
+# TRANS: map projection / transformation
+TRANS TRANS_MERC WGS-84 39.665000 -119.690000 0.00
+
+# GTFILES <input file root> <output file root> wave_type (P, S)
+GTFILES ./data/nll/nll-run/v2g3.inp ./data/nll/nll-grd3/g2t3 S
+
+# GTMODE grid_mode angle_mode
+GTMODE GRID3D ANGLES_NO
+
+# Include a station file with the following format:
+# GTSRCE label fmt lat lon dep elev
+INCLUDE ./data/nll/nll-run/nll-sta.txt
+
+# Finite Difference Params (Podvin and Lemcomte, 1991, GJI, 105, 271-284)
+# PLFD eps flag
+# eps:  fraction (typically 1.0E-3) defining the tolerated model inhomogeneity for exact
+#       initialization. A tolerance larger than 0.01 will potentially create errors larger
+#       than those involved by the F.D. scheme without any exact initialization.
+# flag: message flag (0:silent, 1:few messages, 2:verbose)
+GT_PLFD 1.0e-3 0
+########## END of Grid2Time control file statements ###########

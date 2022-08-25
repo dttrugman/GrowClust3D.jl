@@ -1,0 +1,31 @@
+############ Vel2Grid Input file for NonLinLoc / GrowClust Integration ##########
+#     Daniel Trugman, UT Austin. 2022.
+
+ # CONTROL message_flag (0:silent,1:few messages,2:verbose,...), RandomNumSeed
+CONTROL 2 12345
+
+# TRANS: map projection / transformation
+TRANS TRANS_MERC WGS-84 39.665000 -119.690000 0.00
+
+# VGOUT <output file root>
+VGOUT ./data/nll/nll-run/v2g.inp
+
+# VGTYPE wave_type (P, S)
+VGTYPE P
+VGTYPE S
+
+# VGGRID: grid description with the following fields:
+# nX nY nY --> number of grid points in X, Y, Z
+# oX oY oZ --> origin of grid in km, ENU system
+# dX dY dZ --> grid spacing in in X, Y, Z in km
+# grid type --> VELOCITY = km/s, VELOCITY_METERS = m/s,
+#               SLOWNESS = s/km, VEL2 = vel**2, SLOW2 = slow**2
+#               SLOW_2_METERS = slow**2 ((s/m)**2), SLOW_LEN = slow*d_grid
+# NOTE: num_grid_x must be = 2 for 2D grids)
+VGGRID 2 101 25 0.0 0.0 -3.0 1.0 1.0 1.0 SLOW_LEN
+
+# INCLUDE a layered velocity model file with the following format:
+# LAYER depth, Vp_top, Vp_grad, Vs_top, Vs_grad, rho_top, rho_grad
+INCLUDE ./data/nll/nll-run/nll-vz.txt
+
+########## END of Vel2Grid control file statements ###########

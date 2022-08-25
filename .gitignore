@@ -3,12 +3,9 @@
 *.jl.mem
 deps/deps.jl
 .DS_Store
-examples/plot_ridgecrest.jl
-examples/plot_ssprings.jl
-old/*
 old
-test/make_nllgrid*.jl
-test/nll-run*
-test/tt*
 test/.*
-examples/data/out/*.png
+examples/data/tt
+examples/data/nll/nll-grd3/*
+examples/data/nll/nll-run/*.hdr
+examples/data/nll/nll-run/*.buf

@@ -33,7 +33,7 @@ data/in/xcordata.txt
 * ttabsrc: travel time table source ("trace" or "nllgrid")
 nllgrid
 * fin_vzmdl (model name)
-g2t
+g2t3
 * fdir_ttab (directory for travel time tables/grids or NONE)
 data/nll/nll-grd3/
 * projection (proj, ellps, lon0, lat0, rotANG, [latP1, latP2])
