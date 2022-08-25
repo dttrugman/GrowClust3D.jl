@@ -1,4 +1,4 @@
-# testing option
+# Testing options
 test_trace1D = true
 test_grid1D = false # requires NLL grids
 test_grid3D = false # requires NLL grids
