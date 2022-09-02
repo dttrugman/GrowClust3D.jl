@@ -40,7 +40,7 @@
              RMS differential time residual (P-phase):      0.0829
    Mean (signed) differential time residual (P-phase):      0.0003
                    Number of xcor data used (S-phase):      259274
-             RMS differential time residual (S-phase):      0.0586
+             RMS differential time residual (S-phase):      0.0584
    Mean (signed) differential time residual (S-phase):      0.0003
 
                 Number of clusters with >=   2 events:          6

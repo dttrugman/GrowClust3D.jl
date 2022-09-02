@@ -32,15 +32,15 @@
 
 ********************  GROWCLUST Run Summary  *********************
                              Number of catalog events:        1616
-                           Number of relocated events:         734
+                           Number of relocated events:         733
                           Number of input event pairs:       50214
                            Number of event pairs used:       50214
                 Number of xcor data used (total, P+S):      608577
                    Number of xcor data used (P-phase):      349303
-             RMS differential time residual (P-phase):      0.0828
+             RMS differential time residual (P-phase):      0.0829
    Mean (signed) differential time residual (P-phase):      0.0003
                    Number of xcor data used (S-phase):      259274
-             RMS differential time residual (S-phase):      0.0584
+             RMS differential time residual (S-phase):      0.0585
    Mean (signed) differential time residual (S-phase):      0.0003
 
                 Number of clusters with >=   2 events:          6
