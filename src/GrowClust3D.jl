@@ -4,7 +4,7 @@ module GrowClust3D
 # external packages
 using Printf, Random, Dates, DataFrames
 using SharedArrays, Distributed
-using Proj4: Transformation
+using Proj: Transformation
 using StatsBase: mean, median, mad, minimum, maximum, percentile, sample, std
 using Interpolations: LinearInterpolation, CubicSplineInterpolation
 using Interpolations: Flat, Line, Reflect, Throw

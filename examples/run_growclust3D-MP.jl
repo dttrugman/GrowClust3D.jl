@@ -7,7 +7,7 @@ using Printf
 using DataFrames
 using Random
 using Dates
-using Proj4: Transformation, inv
+using Proj: Transformation, inv
 using Distributed
 using SharedArrays
 

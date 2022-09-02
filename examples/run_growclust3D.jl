@@ -7,7 +7,7 @@ using Printf
 using DataFrames
 using Random
 using Dates
-using Proj4: Transformation, inv
+using Proj: Transformation, inv
 
 # GrowClust3D
 using GrowClust3D
