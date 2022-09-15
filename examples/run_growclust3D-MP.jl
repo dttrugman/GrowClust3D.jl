@@ -144,11 +144,9 @@ else
     plat1, plat2 = Nothing, Nothing # placeholders
 end
 if !(mlon01 < plon0 < mlon99)
-    println("PROJECTION ORIGIN NOT ALIGNED WITH SEISMICITY:")
-    exit()
+    println("Caution! Projection origin outside bounds of seismicity.")
 elseif !(mlat01 < plat0 < mlat99)
-    println("PROJECTION ORIGIN NOT ALIGNED WITH SEISMICITY:")
-    exit()
+    println("Caution! Projection origin outside bounds of seismicity.")
 end
 
 ### Read Stations
