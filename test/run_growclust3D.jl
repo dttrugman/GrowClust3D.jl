@@ -418,7 +418,7 @@ boot_madH, boot_madZ, boot_madT, boot_stdH, boot_stdZ, boot_stdT,
 ### Write Output File: Catalog (if requested)
 if !(inpD["fout_cat"] in ["none","None", "NONE"])
     write_cat(inpD,rdf,qnpair,qndiffP,qndiffS,
-        qrmsP,qrmsS,boot_madH,boot_madH,boot_madZ)
+        qrmsP,qrmsS,boot_madH,boot_madZ,boot_madT)
 end
 
 ### Write Output File: Cluster (if requested)
