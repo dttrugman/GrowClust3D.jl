@@ -1,5 +1,9 @@
 # GrowClust3D.jl
-This repository hosts a Julia implementation of the GrowClust program for relative relocation of earthquake hypocenters based on waveform cross-correlation data. The vision for this program is to provide more flexibility and 3D velocity model capabilities than the original Fortran90 source code. Complete documentation is still a work in progress but here: https://github.com/dttrugman/GrowClust3D/wiki/Documentation. We are planning a manuscript describing this new package for publication in *Seismological Research Letters*. Citation details will be updated at that time.
+This repository hosts a Julia implementation of the GrowClust program for relative relocation of earthquake hypocenters based on waveform cross-correlation data. The vision for this program is to provide more flexibility and 3D velocity model capabilities than the original Fortran90 source code. Complete documentation is available here https://github.com/dttrugman/GrowClust3D/wiki/Documentation. 
+
+If you use this code in your research, please cite the following paper describing the new code and its application:
+
+Daniel T. Trugman, Calum J. Chamberlain, Alexandros Savvaidis, Anthony Lomax; GrowClust3D.jl: A Julia Package for the Relative Relocation of Earthquake Hypocenters Using 3D Velocity Models. Seismological Research Letters 2022; doi: https://doi.org/10.1785/0220220193
 
 ---
 

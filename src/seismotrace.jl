@@ -88,7 +88,7 @@ end
 #     alpha_s0:  P-wave speed in coarse model
 #     beta_s0:   S-wave speed in coarse model
 #     itp_dz:    Depth interval for interpolation
-#     ztop:      Top depth of the output model (can be )
+#     ztop:      Top depth of the output model (can be higher)
 #
 #  < Returns
 #     z_s:       Depth points in finer interpolated model
