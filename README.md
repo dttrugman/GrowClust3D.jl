@@ -17,6 +17,8 @@ Once installed, please do run the test set that checks your installation by runn
 
 ` pkg> test GrowClust3D`
 
+**Note:** The GrowClust3D software was finalized using Julia v1.8. It is recommended to use this version or later; older versions may work but there can be compatibility issues with the packages GrowClust3D depends on. For example, Proj.jl requires v1.6 or later at present writing. 
+
 ---
 
 The `examples/` directory has two different Julia (.jl) "run/driver" scripts: `run_growclust3D.jl` as a reference example for typical usage on a single processor, and `run_growclust3D-MP.jl` which is similar in spirit but designed for multiprocessing on multiple cores. These two .jl scripts can be copied and reused as examples for any generic GrowClust3D problem with little/no modification.
