@@ -33,8 +33,6 @@ const torgdifmax = Float32(10.0) # maximum origin time adjustment (for robustnes
    
 # -------- Bootstrap resampling parameters -------------------
 const iseed = 0 # random number seed
-#  1: Resample each event pair independently (each pair always has the same # of picks in each resample)'
-#  2: Resample the entire data vectors at once (event pairs may have different # of picks in each resample)
         
 # ------- Velocity model parameters  -------------------------
 const vzmodel_type = 1 # velocity model type: 1 = flat earth, (Z,Vp,Vs)
