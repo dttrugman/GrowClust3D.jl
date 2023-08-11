@@ -3,6 +3,9 @@ uuid = "59dc28db-a7c2-48c3-baa7-9a4a695502ae"
 authors = ["Daniel Trugman <dtrugman@unr.edu>"]
 version = "0.1.0"
 
+[compat]
+julia = "1.7"
+
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
