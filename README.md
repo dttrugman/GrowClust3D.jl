@@ -17,7 +17,7 @@ Once installed, please do run the test set that checks your installation by runn
 
 ` pkg> test GrowClust3D`
 
-**Note:** The GrowClust3D software was finalized using Julia v1.8. It is recommended to use this version or later; older versions may work but there can be compatibility issues with the packages GrowClust3D depends on. For example, Proj.jl requires v1.6 or later at present writing. 
+**Note:** The GrowClust3D software was finalized using Julia v1.8. It is recommended to use at least v1.6 or later as there can be compatibility issues with the packages GrowClust3D depends on. For example, Proj.jl requires v1.6 or later at present writing. 
 
 ---
 
