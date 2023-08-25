@@ -336,6 +336,7 @@ function read_evlist(evfile,evfmt)
     
     # compute otime 
     df[!,:qsc] = Base.round.(df[!,:qsc],digits=3) # DateTimes have ms precision
+    df[df.qsc.>=60.0,:qsc] .= 59.999 # for robustness after rounding
     df[!,:qotime] = DateTime.(convert.(Int32,df[!,:qyr]),
         convert.(Int32,df[!,:qmon]),convert.(Int32,df[!,:qdy]),
         convert.(Int32,df[!,:qhr]),convert.(Int32,df[!,:qmin]),
