@@ -11,7 +11,8 @@ function lonlat2xypos(lons::Vector{Float64},lats::Vector{Float64},
     # project each lon lat point
     for ii in eachindex(xx)
         if rotANG == 0.0 # no rotation
-            xx[ii], yy[ii] = fproj([lons[ii] lats[ii]])
+            #xx[ii], yy[ii] = fproj([lons[ii] lats[ii]]) # v1.4 or lower
+            xx[ii], yy[ii] = fproj(lons[ii], lats[ii]) # v1.5
         else # forward rotation after projection
             xx0, yy0 = fproj([lons[ii] lats[ii]])
             xx4 = xx0*cosd(rotANG) + yy0*sind(rotANG)
@@ -36,7 +37,8 @@ function xypos2latlon(xx::Vector{Float64},yy::Vector{Float64},
     # inverse project each lon lat point
     for ii in eachindex(xx)
         if rotANG == 0.0 # no rotation
-            lons[ii], lats[ii] = iproj([xx[ii], yy[ii]])
+            #lons[ii], lats[ii] = iproj([xx[ii] yy[ii]]) # v1.4 or lower
+            lons[ii], lats[ii] = iproj(xx[ii], yy[ii]) # v1.5
         else # inverse rotation before inverse projection
             xx4, yy4 = xx[ii], yy[ii]
             xx0 = xx4*cosd(-rotANG) + yy4*sind(-rotANG) # negative to reverse
