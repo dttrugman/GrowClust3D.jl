@@ -9,3 +9,4 @@ examples/data/tt
 examples/data/nll/nll-grd3/*
 examples/data/nll/nll-run/*.hdr
 examples/data/nll/nll-run/*.buf
+Manifest.v1.8.toml

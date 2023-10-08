@@ -406,7 +406,7 @@ function trace_rays(iw,z_s,z,slow,qdeptab,itp_dz,zstart)
             if ((irtr==0) | (irtr==2)); break; end
 
             # save current x,t,u for ray sampling source depths (stored in deptab)
-            idep = findall(abs.(qdeptab.-z_s[ii+1]) .< itp_dz/2.0)
+            idep = findall(abs.(qdeptab.-z_s[ii+1]) .<= itp_dz/1.99) # update for robustness
             if sum(idep)>0
                 qdepxcor[ip,idep].=x
                 qdeptcor[ip,idep].=t
