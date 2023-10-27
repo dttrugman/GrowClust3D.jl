@@ -14,7 +14,8 @@ function lonlat2xypos(lons::Vector{Float64},lats::Vector{Float64},
             #xx[ii], yy[ii] = fproj([lons[ii] lats[ii]]) # v1.4 or lower
             xx[ii], yy[ii] = fproj(lons[ii], lats[ii]) # v1.5
         else # forward rotation after projection
-            xx0, yy0 = fproj([lons[ii] lats[ii]])
+            #xx0, yy0 = fproj([lons[ii] lats[ii]]) # v1.4 or lower
+            xx0, yy0 = fproj(lons[ii], lats[ii]) # v1.5
             xx4 = xx0*cosd(rotANG) + yy0*sind(rotANG)
             yy4 = -xx0*sind(rotANG) + yy0*cosd(rotANG)
             xx[ii], yy[ii] = xx4, yy4
@@ -43,7 +44,8 @@ function xypos2latlon(xx::Vector{Float64},yy::Vector{Float64},
             xx4, yy4 = xx[ii], yy[ii]
             xx0 = xx4*cosd(-rotANG) + yy4*sind(-rotANG) # negative to reverse
             yy0 = -xx4*sind(-rotANG) + yy4*cosd(-rotANG) # negative to reverse
-            lons[ii], lats[ii] = iproj([xx0, yy0])
+            #lons[ii], lats[ii] = iproj([xx0 yy0]) # v1.4 or lower
+            lons[ii], lats[ii] = iproj(xx0, yy0) # v1.5
         end
     end
 
