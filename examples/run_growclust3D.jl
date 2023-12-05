@@ -265,7 +265,6 @@ rlats, rlons, rdeps = qdf[:,:qlat], qdf[:,:qlon], qdf[:,:qdep]
 rXs, rYs = qdf[:,:qX4], qdf[:,:qY4]
 rorgs = zeros(Float32,nq) # origin time adjust
 rcids = Vector{Int32}(1:nq) # initialize each event into one cluster
-npair = -1 # will update this
 
 # Setup bootstrapping matrices
 if inpD["nboot"] > 0
@@ -368,7 +367,6 @@ println("[Progress tracked on Thread 1 only.]\n")
         rdeps .= brdeps
         rorgs .= brorgs
         rcids .= brcids
-        global npair = nrow(bpdf)
     end
         
     # completion
@@ -434,7 +432,7 @@ end
 
 ### Write Output File: Log / Statistics (or print to screen)
 write_log(inpD,[infile_ctl, distmax, distmax2, hshiftmax, vshiftmax, rmedmax],
-    [nq, nreloc, npair, qnpair, npp, nss, rmsP, rmsS, msresP, msresS], tnbranch)
+    [nq, nreloc, qnpair, npp, nss, rmsP, rmsS, msresP, msresS], tnbranch)
 
 ### Report completion
 @printf("\nCompleted task: run_growclust3D.jl\n")

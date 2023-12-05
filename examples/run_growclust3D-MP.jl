@@ -301,7 +301,6 @@ bdepM = SharedArray(repeat(qZ,1,nboot+1))
 borgM = SharedArray(zeros(Float32,(nq,nboot+1)))
 bnbM = SharedArray(zeros(Int64,(nq,nboot+1)))
 bcidM = SharedArray(repeat(Vector{Int32}(1:nq),1,nboot+1))
-bnpairM = SharedArray(zeros(Int64,nboot+1))
 
 # base xcor dataframe to sample from
 xdf00 = select(xdf,[:qix1,:qix2,:sX4,:sY4,:tdif,:itab,:rxcor,:igood])
@@ -381,7 +380,6 @@ println("\n\nStarting relocation estimates, workers=",workers())
         borgM[:,ib] .= brorgs
         bnbM[:,ib] .= bnb
         bcidM[:,ib] .= brcids
-        bnpairM[ib] = nrow(bpdf)
     else
         bXM[:,nboot+1] .= brXs
         bYM[:,nboot+1] .= brYs
@@ -389,7 +387,6 @@ println("\n\nStarting relocation estimates, workers=",workers())
         borgM[:,nboot+1] .= brorgs
         bnbM[:,nboot+1] .= bnb
         bcidM[:,nboot+1] .= brcids
-        bnpairM[nboot+1] = nrow(bpdf)
     end
         
     # completion
@@ -408,7 +405,7 @@ end
 revids = qdf[:,:qid]
 rXs, rYs = bXM[:,nboot+1], bYM[:,nboot+1]
 rlats, rlons, rdeps = blatM[:,nboot+1], blonM[:,nboot+1], bdepM[:,nboot+1]
-rorgs, rcids, npair = borgM[:,nboot+1], bcidM[:,nboot+1], bnpairM[nboot+1]
+rorgs, rcids = borgM[:,nboot+1], bcidM[:,nboot+1]
 
 ################################################################
 
@@ -465,7 +462,7 @@ end
 
 ### Write Output File: Log / Statistics (or print to screen)
 write_log(inpD,[infile_ctl, distmax, distmax2, hshiftmax, vshiftmax, rmedmax],
-    [nq, nreloc, npair, qnpair, npp, nss, rmsP, rmsS, msresP, msresS], tnbranch)
+    [nq, nreloc, qnpair, npp, nss, rmsP, rmsS, msresP, msresS], tnbranch)
 
 ### Report completion
 @printf("\nCompleted task: run_growclust3D-MP.jl\n")

@@ -138,7 +138,7 @@ function write_log(inpD,auxparams,runstats,tnbranch)
     infile_ctl, distmax, distmax2, hshiftmax, vshiftmax, rmedmax = auxparams
 
     # unpack run statistics
-    nq, nreloc, npair, qnpair, npp, nss, rmsP, rmsS, msresP, msresS = runstats
+    nq, nreloc, qnpair, npp, nss, rmsP, rmsS, msresP, msresS = runstats
 
     # compute tree counts
     ntree2 = sum(tnbranch.>=2)
@@ -193,7 +193,6 @@ function write_log(inpD,auxparams,runstats,tnbranch)
         @printf(flog, "********************  GROWCLUST Run Summary  *********************\n")
         @printf(flog, "%55s %10d\n", "Number of catalog events: ", nq)
         @printf(flog, "%55s %10d\n", "Number of relocated events: ", nreloc)
-        @printf(flog, "%55s %10d\n", "Number of input event pairs: ", npair)
         @printf(flog, "%55s %10d\n", "Number of event pairs used: ", sum(qnpair)/2)
         @printf(flog, "%55s %10d\n", "Number of xcor data used (total, P+S): ", npp + nss)
         @printf(flog, "%55s %10d\n", "Number of xcor data used (P-phase): ", npp)
@@ -201,7 +200,7 @@ function write_log(inpD,auxparams,runstats,tnbranch)
         @printf(flog, "%55s %10.4f\n", "Mean (signed) differential time residual (P-phase): ", msresP)
         @printf(flog, "%55s %10d\n", "Number of xcor data used (S-phase): ", nss)
         @printf(flog, "%55s %10.4f\n", "RMS differential time residual (S-phase): ", rmsS)
-        @printf(flog, "%55s %10.4f\n", "Mean (signed) differential time residual (S-phase): ", msresP)
+        @printf(flog, "%55s %10.4f\n", "Mean (signed) differential time residual (S-phase): ", msresS)
         @printf(flog,  "\n")
         @printf(flog, "%55s %9d\n", "Number of clusters with >=   2 events: ", ntree2)
         @printf(flog, "%55s %9d\n", "Number of clusters with >=   5 events: ", ntree5)
@@ -255,7 +254,6 @@ function write_log(inpD,auxparams,runstats,tnbranch)
         @printf("********************  GROWCLUST Run Summary  *********************\n")
         @printf("%55s %10d\n", "Number of catalog events: ", nq)
         @printf("%55s %10d\n", "Number of relocated events: ", nreloc)
-        @printf("%55s %10d\n", "Number of input event pairs: ", npair)
         @printf("%55s %10d\n", "Number of event pairs used: ", sum(qnpair)/2)
         @printf("%55s %10d\n", "Number of xcor data used (total, P+S): ", npp + nss)
         @printf("%55s %10d\n", "Number of xcor data used (P-phase): ", npp)
