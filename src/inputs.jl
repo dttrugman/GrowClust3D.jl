@@ -55,14 +55,10 @@ function read_gcinp(inpfile)
                 inpD["rellipse"] = data[2]
                 inpD["lon0"] = parse(Float64,data[3])
                 inpD["lat0"] = parse(Float64,data[4])
+                inpD["rotANG"] = parse(Float64,data[5])
                 if inpD["proj"] == "lcc"
-                    inpD["latp1"] = parse(Float64,data[5])
-                    inpD["latp2"] = parse(Float64,data[6])
-                    inpD["rotANG"] = parse(Float64,data[7])
-                elseif length(data) >=5
-                    inpD["rotANG"] = parse(Float64,data[5])
-                else
-                    inpD["rotANG"] = 0.0
+                    inpD["latp1"] = parse(Float64,data[6])
+                    inpD["latp2"] = parse(Float64,data[7])
                 end
             elseif counter == 11
                 data = split(sline)
