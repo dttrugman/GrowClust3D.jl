@@ -11,7 +11,7 @@ The (unregistered) package can be installed using the Julia Pkg manager:
 
 ` pkg> add https://github.com/dttrugman/GrowClust3D.jl`
 
-The example scripts use additional functionality from the `DataFrames` external packages, so it is recommended to add it via the package manager to complete the install:
+The example scripts use additional functionality from the `DataFrames` external package, so it is recommended to add it via the package manager to complete the install:
 
 ` pkg> add DataFrames`
 
