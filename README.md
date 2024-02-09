@@ -17,6 +17,10 @@ Once installed, please do run the test set that checks your installation by runn
 
 ` pkg> test GrowClust3D`
 
+The example scripts use additional functionality from the `DataFrames` external packages, so it is recommended to add it via the package manager to complete the install:
+
+` pkg> add DataFrames`
+
 **Note:** The GrowClust3D software was finalized using Julia v1.8. It is recommended to use at least v1.6 or later as there can be compatibility issues with the packages GrowClust3D depends on. For example, Proj.jl requires v1.6 or later at present writing. 
 
 ---
