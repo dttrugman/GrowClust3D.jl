@@ -59,22 +59,25 @@ end
 #  > Inputs: (zz, alpha), depth points and Vp in velocity model
 #  < Returns: imoho, index in velocity model of Moho depth (0 = not found)
 
-function find_moho(zz, alpha; alphaM=7.2, dalphaM=0.5)
+function find_moho(zz, alpha; alphaM1=7.2, alphaM2=8.0, dalphaM=0.5)
     
     # initialize
-    imoho = 0
+    imoho = findfirst(alpha .>= 0.5*(alphaM1 + alphaM2)) # set a reasonable default
     npts = length(zz)
-    
-    # look for jump in Vp, above ~ 7.2km
+
+    # now look for jump in Vp, above ~ 7.2km/s and at most 8.0 km/s (by default)
     #  (this happens at >~ 30km in continental crust, but much shallower in oceans)
     for ii in 2:npts
-        if ((alpha[ii]>=alphaM) & (alpha[ii-1] < alpha[ii]-dalphaM))
+        if ((alpha[ii] >= alphaM1) & (alpha[ii-1] < alpha[ii]-dalphaM))
+            imoho=ii
+            break
+        elseif (alpha[ii] >= alphaM2)
             imoho=ii
             break
         end
     end
     
-   # return index (0 is not found) 
+   # return index
    return imoho
 end
 

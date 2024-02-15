@@ -28,15 +28,15 @@ function make_trace1D_tables(inpD,maxSR,max_selev,usta,sta2elev,ntab,
     end
 
     ### Find Moho depth in model, print results
-    println("\nMoho depths:")
-    imoho = find_moho(z_s0,alpha_s0)
-    @printf("%.2f %.3f %.3f\n",
-        z_s0[imoho], alpha_s0[imoho], beta_s0[imoho])
-    println("Moho slownesses:")
-    @printf("%.4f %.4f\n",1.0/alpha_s0[imoho], 1.0/beta_s0[imoho])
-
-    # update minimum ray parameter
     if inpD["rayparam_min"] < 0.0
+        # find moho depth
+        println("\nMoho depths:")
+        imoho = find_moho(z_s0,alpha_s0)
+        @printf("%.2f %.3f %.3f\n",
+            z_s0[imoho], alpha_s0[imoho], beta_s0[imoho])
+        println("Moho slownesses:")
+        @printf("%.4f %.4f\n",1.0/alpha_s0[imoho], 1.0/beta_s0[imoho])
+        # update minimum ray parameter
         inpD["plongcutP"] = 1.0/alpha_s0[imoho]
         inpD["plongcutS"] = 1.0/beta_s0[imoho]
     end
