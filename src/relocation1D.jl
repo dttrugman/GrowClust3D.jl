@@ -764,6 +764,9 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int3
     union!(cid2pairD[qc1],cid2pairD[qc2])
     union!(cid2qixD[qc1],c2qixs)
 
+    # clean the dictionaries to free memory
+    delete!(cid2pairD, qc2)
+    delete!(cid2qixD, qc2)
 
     # # align cluster and catalog centroids, set average time to zero
     # #  (need to do this b/c not all events used in difclust
@@ -1036,6 +1039,9 @@ function clustertree(pqix1::Vector{Int32},pqix2::Vector{Int32},ixx1::Vector{Int6
     union!(cid2pairD[qc1],cid2pairD[qc2])
     union!(cid2qixD[qc1],c2qixs)
 
+    # clean the dictionaries to free memory
+    delete!(cid2pairD, qc2)
+    delete!(cid2qixD, qc2)
 
     # # align cluster and catalog centroids, set average time to zero
     # #  (need to do this b/c not all events used in difclust
