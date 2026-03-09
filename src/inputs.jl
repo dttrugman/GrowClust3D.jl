@@ -401,15 +401,19 @@ function read_stlist(stfile,stfmt)
         cols=["sta", "slat", "slon", "selev"]
         dtypes = [String,Float64,Float64,Float64]
     end
-    #ncols=length(cols)
+    ncols=length(cols)
     
-    # read all columns
-    df = DataFrame(readdlm(stfile,Any),cols)
-    for (col, ctype) in zip(cols,dtypes)
+    # update to parse data as String for cases where all stations are numeric in name
+    #df = DataFrame(readdlm(stfile,Any),cols)
+    raw = readdlm(stfile,String) # read all columns as String first
+    df = DataFrame(raw[:,1:ncols],cols)
+    for (col, ctype) in zip(cols,dtypes) # now convert to correct types, stripping whitespace
         if ctype == String
-            df[!,col] = string.(df[!,col]) 
+            #df[!,col] = string.(df[!,col])
+            df[!,col] = strip.(string.(df[!,col])) 
         else
-            df[!,col] = convert.(ctype,df[!,col])
+            #df[!,col] = convert.(ctype,df[!,col])
+            df[!,col] = parse.(ctype,strip.(string.(df[!,col])))
         end
     end
     
