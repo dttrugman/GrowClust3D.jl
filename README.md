@@ -3,7 +3,7 @@ This repository hosts a Julia implementation of the GrowClust program for relati
 
 If you use this code in your research, please cite the following paper describing the new code and its application:
 
-Daniel T. Trugman, Calum J. Chamberlain, Alexandros Savvaidis, Anthony Lomax; GrowClust3D.jl: A Julia Package for the Relative Relocation of Earthquake Hypocenters Using 3D Velocity Models. Seismological Research Letters 2022; doi: https://doi.org/10.1785/0220220193
+Daniel T. Trugman, Calum J. Chamberlain, Alexandros Savvaidis, Anthony Lomax; GrowClust3D.jl: A Julia Package for the Relative Relocation of Earthquake Hypocenters Using 3D Velocity Models. Seismological Research Letters 2022; 94 (1): 443–456. doi: [https://doi.org/10.1785/0220220193](https://doi.org/10.1785/0220220193)
 
 ---
 
@@ -19,7 +19,7 @@ Once installed, please do run the test set that checks your installation by runn
 
 ` pkg> test GrowClust3D`
 
-**Note:** The GrowClust3D software was finalized using Julia v1.8. It is recommended to use at least v1.6 or later as there can be compatibility issues with the packages GrowClust3D depends on. For example, Proj.jl requires v1.6 or later at present writing. 
+**Note:** The GrowClust3D software was finalized using Julia v1.8 and tested through v1.11 (as of December 2024). It is recommended to use at least v1.6 or later as there can be compatibility issues with the packages GrowClust3D depends on. For example, Proj.jl requires v1.6 or later at present writing. 
 
 ---
 
